@@ -86,4 +86,25 @@ export const deletePackage = async (id: string) => {
     console.error('Error deleting package:', error);
     throw error;
   }
+};
+
+export const getAgentPackages = async (agentId: string): Promise<Package[]> => {
+  try {
+    const packagesQuery = query(
+      collection(db, 'packages'),
+      where('agent.id', '==', agentId)
+    );
+    const querySnapshot = await getDocs(packagesQuery);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      checkInDate: doc.data().checkInDate?.toDate(),
+      checkOutDate: doc.data().checkOutDate?.toDate(),
+      checkInTime: doc.data().checkInTime?.toDate(),
+      checkOutTime: doc.data().checkOutTime?.toDate(),
+    } as Package));
+  } catch (error) {
+    console.error('Error getting agent packages:', error);
+    throw error;
+  }
 }; 
