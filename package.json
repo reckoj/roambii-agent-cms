@@ -6,16 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "init-plans": "dotenv -e .env.init -- ts-node src/scripts/initialize-plans.ts",
+    "init-test-plans": "ts-node src/scripts/initialize-plans-helper.ts",
+    "init-direct": "ts-node -r dotenv/config src/scripts/initialize-plans-direct.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@reduxjs/toolkit": "^2.8.1",
+    "@stripe/stripe-js": "^7.3.0",
     "@types/react-datepicker": "^6.2.0",
     "chart.js": "^4.4.9",
     "classnames": "^2.5.1",
     "firebase": "^11.7.1",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.508.0",
     "next": "15.3.2",
     "next-auth": "^4.24.11",
@@ -26,14 +31,18 @@
     "react-hook-form": "^7.56.3",
     "react-hot-toast": "^2.5.2",
     "react-redux": "^9.2.0",
-    "redux-persist": "^6.0.0"
+    "redux-persist": "^6.0.0",
+    "stripe": "^18.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.5.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

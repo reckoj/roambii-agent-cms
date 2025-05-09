@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Default rules for all collections
+    match /{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Deny all writes by default
+    }
+    
+    // Subscription Plans collection - ALL users need to read this
+    match /subscriptionPlans/{planId} {
+      allow read: if true; // Public read access for subscription plans
+      allow write: if isAdmin() || isAuthenticated(); // For testing, allow authenticated users to write
+    }
+    
+    // Subscriptions collection
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated(); // Any authenticated user can read subscriptions
+      allow create: if isAuthenticated(); // Any authenticated user can create subscriptions
+      allow update: if isAuthenticated(); // Any authenticated user can update subscriptions
+      allow delete: if isAdmin(); // Only admins can delete subscriptions
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false; // Prevent user deletion
+    }
+    
+    // ... rest of your existing rules ...
+  }
+} 

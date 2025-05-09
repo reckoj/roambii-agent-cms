@@ -26,6 +26,11 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // Add console log for debugging
+  if (typeof window !== 'undefined') {
+    console.log('RootLayout rendered, app initialized');
+  }
+  
   return (
     <html lang="en">
       <body className={inter.className}>

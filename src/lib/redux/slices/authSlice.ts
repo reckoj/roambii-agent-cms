@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { auth } from '@/lib/firebase/config';
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { ensureUserDocument, logoutUser } from '@/lib/auth-helpers';
 
 interface Agent {
   id: string;
@@ -27,16 +28,30 @@ export const loginUserAsync = createAsyncThunk(
   'auth/login',
   async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
     try {
+      console.log('Attempting to sign in with:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      
+      console.log('Firebase auth successful, user:', user.uid);
+      
+      // Ensure user document exists in Firestore
+      await ensureUserDocument(
+        user.uid,
+        user.email || undefined,
+        user.displayName || undefined
+      );
+      
+      console.log('User document ensured in Firestore');
+      
       return {
         id: user.uid,
         name: user.displayName || '',
         email: user.email || '',
         avatar: user.photoURL || undefined,
       };
-    } catch (error) {
-      return rejectWithValue('Invalid email or password');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return rejectWithValue(error.message || 'Invalid email or password');
     }
   }
 );
@@ -45,10 +60,18 @@ export const logoutUserAsync = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await signOut(auth);
+      // Use our helper to handle all the cleanup
+      await logoutUser();
+      
+      // Always return a success value (null) even if there were internal errors
+      // This ensures the Redux state gets cleared properly
       return null;
     } catch (error) {
-      return rejectWithValue('Failed to logout');
+      console.error('Error in logoutUserAsync:', error);
+      
+      // Don't reject - we want the reducer to still reset the auth state
+      // even if there was an error during logout
+      return null;
     }
   }
 );

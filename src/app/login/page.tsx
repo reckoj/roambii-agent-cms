@@ -8,6 +8,9 @@ import { loginUserAsync } from "@/lib/redux/slices/authSlice";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { storeUserInLocalStorage, checkAndStoreSubscriptionStatus } from '@/lib/auth-helpers';
+import LoginDebugger from "@/components/LoginDebug";
+import Cookies from 'js-cookie';
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -22,16 +25,46 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
+    console.log('Login attempt with email:', email);
 
     try {
       const resultAction = await dispatch(loginUserAsync({ email, password }));
-    if (loginUserAsync.fulfilled.match(resultAction)) {
-      router.push("/dashboard");
+      
+      if (resultAction.meta?.requestStatus === 'fulfilled' && resultAction.payload) {
+        const user = resultAction.payload as any;
+        console.log('Login successful:', user);
+        
+        // Store user data in localStorage
+        storeUserInLocalStorage({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar
+        });
+        
+        // Set a cookie for server-side auth checks
+        Cookies.set('lastUserId', user.id, { expires: 7 }); // Expires in 7 days
+        
+        // Check and store subscription status
+        const hasSubscription = await checkAndStoreSubscriptionStatus(user.id);
+        console.log('Subscription status:', hasSubscription);
+        
+        // Redirect based on subscription status
+        if (hasSubscription) {
+          router.push("/dashboard");
+        } else {
+          router.push("/subscribe");
+        }
       } else {
-        setError(resultAction.payload as string);
+        console.error('Login failed:', resultAction);
+        const errorMessage = typeof resultAction.payload === 'string' 
+          ? resultAction.payload 
+          : "Invalid email or password";
+        setError(errorMessage);
       }
-    } catch (err) {
-      setError("An unexpected error occurred");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -127,6 +160,9 @@ export default function LoginPage() {
               </Link>
             </div>
           </form>
+
+          {/* Debug component - REMOVE IN PRODUCTION */}
+          <LoginDebugger />
         </div>
       </div>
 
