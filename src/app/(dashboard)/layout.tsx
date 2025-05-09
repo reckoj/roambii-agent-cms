@@ -59,9 +59,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const handleLogout = async () => {
     try {
       await dispatch(logoutUserAsync());
-      router.push('/login');
+      router.push("/login");
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error("Error logging out:", error);
     }
   };
 

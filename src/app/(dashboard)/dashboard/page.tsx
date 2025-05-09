@@ -120,7 +120,6 @@ export default function DashboardPage() {
   }, [agent, dispatch]);
 
   // Generate data for additional components and charts
-  // Generate data for additional components and charts
   useEffect(() => {
     // Revenue data - 6 month trend
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
