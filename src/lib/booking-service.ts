@@ -1,0 +1,703 @@
+import {
+  Booking,
+  BookingFilter,
+  BookingStats,
+  PaymentDetails,
+} from "@/types/booking";
+import { db } from "@/lib/firebase/config";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+  DocumentSnapshot,
+  serverTimestamp,
+  Timestamp,
+  startAt,
+  endAt,
+  DocumentData,
+  QuerySnapshot,
+} from "firebase/firestore";
+import { Package } from "@/types/package";
+
+// Safe date conversion function
+const safeToDate = (timestamp: any): Date | null => {
+  if (!timestamp) return null;
+
+  try {
+    // If it's a Firestore Timestamp
+    if (timestamp?.toDate && typeof timestamp.toDate === "function") {
+      return timestamp.toDate();
+    }
+
+    // If it's already a Date
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+
+    // If it's a number or string that can be parsed
+    if (typeof timestamp === "number" || typeof timestamp === "string") {
+      const date = new Date(timestamp);
+      // Check if valid date
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error converting timestamp to date:", error);
+    return null;
+  }
+};
+
+// Convert Firestore document to Booking type
+const convertToBooking = (doc: DocumentData): Booking => {
+  const data = doc.data();
+
+  // Get dates with fallbacks to ensure we never return null
+  const startDateResult = safeToDate(data.start_date);
+  const endDateResult = safeToDate(data.end_date);
+  const createdAtResult = safeToDate(data.created_at);
+  const updatedAtResult = safeToDate(data.updated_at);
+
+  return {
+    id: doc.id,
+    clientId: data.client_id,
+    clientName: data.client_name,
+    clientEmail: data.client_email,
+    clientPhone: data.client_phone,
+    packageId: data.package_id,
+    packageName: data.package_name,
+    agentId: data.agent_id,
+    startDate: startDateResult || new Date(), // Default to current date if null
+    endDate:
+      endDateResult || new Date(new Date().setDate(new Date().getDate() + 7)), // Default to +7 days if null
+    price: data.price || 0,
+    totalPaid: data.total_paid || 0,
+    balance: data.balance || 0,
+    status: data.status || "pending",
+    travelers: data.travelers || 1,
+    notes: data.notes,
+    paymentMethod: data.payment_method,
+    paymentStatus: data.payment_status || "unpaid",
+    createdAt: createdAtResult?.toISOString() || new Date().toISOString(),
+    updatedAt: updatedAtResult?.toISOString() || new Date().toISOString(),
+  };
+};
+
+// Create a new booking
+export const createBooking = async (
+  bookingData: Omit<Booking, "id">
+): Promise<Booking> => {
+  try {
+    const bookingRef = collection(db, "bookings");
+
+    // Prepare data for Firestore
+    const newBooking = {
+      client_id: bookingData.clientId,
+      client_name: bookingData.clientName,
+      client_name_lower: bookingData.clientName.toLowerCase(), // For case-insensitive search
+      client_email: bookingData.clientEmail,
+      client_phone: bookingData.clientPhone,
+      package_id: bookingData.packageId,
+      package_name: bookingData.packageName,
+      agent_id: bookingData.agentId,
+      start_date:
+        bookingData.startDate instanceof Date
+          ? Timestamp.fromDate(bookingData.startDate)
+          : Timestamp.fromDate(new Date(bookingData.startDate)),
+      end_date:
+        bookingData.endDate instanceof Date
+          ? Timestamp.fromDate(bookingData.endDate)
+          : Timestamp.fromDate(new Date(bookingData.endDate)),
+      price: bookingData.price,
+      total_paid: bookingData.totalPaid || 0,
+      balance: bookingData.price - (bookingData.totalPaid || 0),
+      status: bookingData.status,
+      travelers: bookingData.travelers,
+      notes: bookingData.notes || "",
+      payment_method: bookingData.paymentMethod || "",
+      payment_status: bookingData.paymentStatus || "unpaid",
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(bookingRef, newBooking);
+
+    // Return the booking with the new ID
+    return {
+      ...bookingData,
+      id: docRef.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    throw error;
+  }
+};
+
+// Get a booking by ID
+export const getBookingById = async (id: string): Promise<Booking | null> => {
+  try {
+    const bookingRef = doc(db, "bookings", id);
+    const bookingDoc = await getDoc(bookingRef);
+
+    if (!bookingDoc.exists()) {
+      return null;
+    }
+
+    return convertToBooking(bookingDoc);
+  } catch (error) {
+    console.error("Error getting booking:", error);
+    throw error;
+  }
+};
+
+// Update a booking
+export const updateBooking = async (
+  id: string,
+  bookingData: Partial<Booking>
+): Promise<Booking> => {
+  try {
+    const bookingRef = doc(db, "bookings", id);
+
+    // Prepare update data for Firestore
+    const updateData: any = {
+      updated_at: serverTimestamp(),
+    };
+
+    // Map booking fields to Firestore fields
+    if (bookingData.clientName !== undefined) {
+      updateData.client_name = bookingData.clientName;
+      updateData.client_name_lower = bookingData.clientName.toLowerCase();
+    }
+    if (bookingData.clientEmail !== undefined)
+      updateData.client_email = bookingData.clientEmail;
+    if (bookingData.clientPhone !== undefined)
+      updateData.client_phone = bookingData.clientPhone;
+    if (bookingData.packageName !== undefined)
+      updateData.package_name = bookingData.packageName;
+    if (bookingData.status !== undefined)
+      updateData.status = bookingData.status;
+    if (bookingData.notes !== undefined) updateData.notes = bookingData.notes;
+    if (bookingData.paymentMethod !== undefined)
+      updateData.payment_method = bookingData.paymentMethod;
+    if (bookingData.paymentStatus !== undefined)
+      updateData.payment_status = bookingData.paymentStatus;
+    if (bookingData.totalPaid !== undefined) {
+      updateData.total_paid = bookingData.totalPaid;
+      // Update balance if total paid changes
+      if (bookingData.price !== undefined) {
+        updateData.balance = bookingData.price - bookingData.totalPaid;
+      } else {
+        // Get current price
+        const currentDoc = await getDoc(bookingRef);
+        if (currentDoc.exists()) {
+          const currentData = currentDoc.data();
+          updateData.balance = currentData.price - bookingData.totalPaid;
+        }
+      }
+    }
+    if (bookingData.price !== undefined) {
+      updateData.price = bookingData.price;
+      // Update balance if price changes
+      if (bookingData.totalPaid !== undefined) {
+        updateData.balance = bookingData.price - bookingData.totalPaid;
+      } else {
+        // Get current total paid
+        const currentDoc = await getDoc(bookingRef);
+        if (currentDoc.exists()) {
+          const currentData = currentDoc.data();
+          updateData.balance = bookingData.price - currentData.total_paid;
+        }
+      }
+    }
+    if (bookingData.travelers !== undefined)
+      updateData.travelers = bookingData.travelers;
+
+    if (bookingData.startDate !== undefined) {
+      updateData.start_date =
+        bookingData.startDate instanceof Date
+          ? Timestamp.fromDate(bookingData.startDate)
+          : Timestamp.fromDate(new Date(bookingData.startDate));
+    }
+
+    if (bookingData.endDate !== undefined) {
+      updateData.end_date =
+        bookingData.endDate instanceof Date
+          ? Timestamp.fromDate(bookingData.endDate)
+          : Timestamp.fromDate(new Date(bookingData.endDate));
+    }
+
+    // Update document
+    await updateDoc(bookingRef, updateData);
+
+    // Retrieve the updated document
+    const updatedDoc = await getDoc(bookingRef);
+    if (!updatedDoc.exists()) {
+      throw new Error("Booking not found after update");
+    }
+
+    return convertToBooking(updatedDoc);
+  } catch (error) {
+    console.error("Error updating booking:", error);
+    throw error;
+  }
+};
+
+// Get bookings with filters
+export const getBookings = async (
+  agentId: string,
+  filters: BookingFilter = {},
+  lastVisible?: DocumentSnapshot | null,
+  itemsPerPage: number = 10
+): Promise<{ bookings: Booking[]; lastVisible: DocumentSnapshot | null }> => {
+  try {
+    let bookingsQuery = query(
+      collection(db, "bookings"),
+      where("agent_id", "==", agentId),
+      orderBy("created_at", "desc")
+    );
+
+    // Apply filters
+    if (filters.status && filters.status !== "all") {
+      bookingsQuery = query(
+        bookingsQuery,
+        where("status", "==", filters.status)
+      );
+    }
+
+    if (filters.startDate) {
+      const startTimestamp = Timestamp.fromDate(filters.startDate);
+      bookingsQuery = query(
+        bookingsQuery,
+        where("start_date", ">=", startTimestamp)
+      );
+    }
+
+    if (filters.endDate) {
+      const endTimestamp = Timestamp.fromDate(filters.endDate);
+      bookingsQuery = query(
+        bookingsQuery,
+        where("end_date", "<=", endTimestamp)
+      );
+    }
+
+    if (filters.clientId) {
+      bookingsQuery = query(
+        bookingsQuery,
+        where("client_id", "==", filters.clientId)
+      );
+    }
+
+    if (filters.packageId) {
+      bookingsQuery = query(
+        bookingsQuery,
+        where("package_id", "==", filters.packageId)
+      );
+    }
+
+    // Apply pagination
+    if (lastVisible) {
+      bookingsQuery = query(
+        bookingsQuery,
+        startAfter(lastVisible),
+        limit(itemsPerPage)
+      );
+    } else {
+      bookingsQuery = query(bookingsQuery, limit(itemsPerPage));
+    }
+
+    const snapshot = await getDocs(bookingsQuery);
+    const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    // If search term is provided, filter results manually
+    // (Note: This is not optimal for large datasets - in production you'd likely use a search service)
+    let bookings = snapshot.docs.map((doc) => convertToBooking(doc));
+
+    if (filters.searchTerm) {
+      const searchTerm = filters.searchTerm.toLowerCase();
+      bookings = bookings.filter(
+        (booking) =>
+          booking.clientName.toLowerCase().includes(searchTerm) ||
+          booking.clientEmail.toLowerCase().includes(searchTerm) ||
+          booking.packageName.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    return {
+      bookings,
+      lastVisible: lastVisibleDoc,
+    };
+  } catch (error) {
+    console.error("Error getting bookings:", error);
+    throw error;
+  }
+};
+
+// Get booking statistics
+export const getBookingStats = async (
+  agentId: string
+): Promise<BookingStats> => {
+  try {
+    const bookingsRef = collection(db, "bookings");
+
+    // Query all bookings for the agent
+    const bookingsQuery = query(bookingsRef, where("agent_id", "==", agentId));
+
+    const snapshot = await getDocs(bookingsQuery);
+
+    // Calculate statistics
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonthTimestamp = Timestamp.fromDate(startOfMonth);
+
+    let totalBookings = 0;
+    let confirmedBookings = 0;
+    let pendingBookings = 0;
+    let cancelledBookings = 0;
+    let totalRevenue = 0;
+    let revenueThisMonth = 0;
+    let bookingsThisMonth = 0;
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      totalBookings++;
+      totalRevenue += data.price || 0;
+
+      // Count by status
+      if (data.status === "confirmed") confirmedBookings++;
+      else if (data.status === "pending") pendingBookings++;
+      else if (data.status === "cancelled") cancelledBookings++;
+
+      // This month's data
+      const createdAt = data.created_at as Timestamp;
+      if (createdAt && createdAt >= startOfMonthTimestamp) {
+        bookingsThisMonth++;
+        revenueThisMonth += data.price || 0;
+      }
+    });
+
+    return {
+      total: totalBookings,
+      confirmed: confirmedBookings,
+      pending: pendingBookings,
+      cancelled: cancelledBookings,
+      revenue: totalRevenue,
+      revenueMonth: revenueThisMonth,
+      bookingsMonth: bookingsThisMonth,
+    };
+  } catch (error) {
+    console.error("Error getting booking stats:", error);
+    throw error;
+  }
+};
+
+// Add payment to a booking
+export const addPayment = async (
+  payment: Omit<PaymentDetails, "id">
+): Promise<PaymentDetails> => {
+  try {
+    // Add payment record
+    const paymentsRef = collection(db, "booking_payments");
+    const paymentData = {
+      booking_id: payment.bookingId,
+      amount: payment.amount,
+      method: payment.method,
+      status: payment.status,
+      transaction_id: payment.transactionId || "",
+      date:
+        payment.date instanceof Date
+          ? Timestamp.fromDate(payment.date)
+          : Timestamp.fromDate(new Date(payment.date)),
+      notes: payment.notes || "",
+      created_at: serverTimestamp(),
+    };
+
+    const paymentDocRef = await addDoc(paymentsRef, paymentData);
+
+    // Update booking total paid and payment status
+    if (payment.status === "successful") {
+      const bookingRef = doc(db, "bookings", payment.bookingId);
+      const bookingDoc = await getDoc(bookingRef);
+
+      if (bookingDoc.exists()) {
+        const bookingData = bookingDoc.data();
+        const currentPaid = bookingData.total_paid || 0;
+        const newTotalPaid = currentPaid + payment.amount;
+        const price = bookingData.price || 0;
+        const balance = price - newTotalPaid;
+
+        // Determine payment status
+        let paymentStatus = "unpaid";
+        if (balance <= 0) {
+          paymentStatus = "paid";
+        } else if (newTotalPaid > 0) {
+          paymentStatus = "partially_paid";
+        }
+
+        await updateDoc(bookingRef, {
+          total_paid: newTotalPaid,
+          balance: balance,
+          payment_status: paymentStatus,
+          updated_at: serverTimestamp(),
+        });
+      }
+    }
+
+    return {
+      ...payment,
+      id: paymentDocRef.id,
+    };
+  } catch (error) {
+    console.error("Error adding payment:", error);
+    throw error;
+  }
+};
+
+// Get payments for a booking
+export const getBookingPayments = async (
+  bookingId: string
+): Promise<PaymentDetails[]> => {
+  try {
+    const paymentsRef = collection(db, "booking_payments");
+    const paymentsQuery = query(
+      paymentsRef,
+      where("booking_id", "==", bookingId),
+      orderBy("date", "desc")
+    );
+
+    const snapshot = await getDocs(paymentsQuery);
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      // Convert date to string if it's null to avoid type error
+      const paymentDate = safeToDate(data.date);
+      return {
+        id: doc.id,
+        bookingId: data.booking_id,
+        amount: data.amount,
+        method: data.method,
+        status: data.status,
+        transactionId: data.transaction_id,
+        date: paymentDate || new Date(), // Default to current date if null
+        notes: data.notes,
+      };
+    });
+  } catch (error) {
+    console.error("Error getting booking payments:", error);
+    throw error;
+  }
+};
+
+// Delete a booking
+export const deleteBooking = async (id: string): Promise<boolean> => {
+  try {
+    const bookingRef = doc(db, "bookings", id);
+    await deleteDoc(bookingRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting booking:", error);
+    throw error;
+  }
+};
+
+export const getPackageById = async (id: string): Promise<Package | null> => {
+  try {
+    const packageRef = doc(db, "package_info", id);
+    const packageDoc = await getDoc(packageRef);
+    if (packageDoc.exists()) {
+      const data = packageDoc.data();
+
+      // Handle dates safely
+      const checkInDate = safeToDate(data.check_in_date);
+      const checkOutDate = safeToDate(data.check_out_date);
+      const checkInTime = safeToDate(data.check_in_time);
+      const checkOutTime = safeToDate(data.check_out_time);
+      const createdAt = safeToDate(data.createdAt);
+      const updatedAt = safeToDate(data.updatedAt);
+
+      return {
+        id: packageDoc.id,
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        type: data.type,
+        image: data.banner_image,
+        rating: data.rating,
+        allinclusive: data.is_all_inclusive,
+        roomType: data.room_type,
+        amenities: data.amenities,
+        isFeatured: data.is_featured_package,
+        bathrooms: data.baths,
+        bedrooms: data.beds,
+        guestAmount: data.guest_amount,
+        checkInDate: checkInDate || new Date(),
+        checkOutDate: checkOutDate || new Date(),
+        checkInTime: checkInTime || new Date(),
+        checkOutTime: checkOutTime || new Date(),
+        agent: data.agent,
+        createdAt: createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: updatedAt?.toISOString() || new Date().toISOString(),
+      } as Package;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting package:", error);
+    throw error;
+  }
+};
+
+export const getAgentPackages = async (
+  agentId: string,
+  lastVisible?: DocumentSnapshot | null
+): Promise<{ packages: Package[]; lastVisible: DocumentSnapshot | null }> => {
+  try {
+    console.log("Fetching packages for agent:", agentId);
+    const PACKAGES_PER_PAGE = 10;
+    let packagesQuery = query(
+      collection(db, "package_info"),
+      where("agentId", "==", agentId),
+      orderBy("createdAt", "desc"),
+      limit(PACKAGES_PER_PAGE)
+    );
+
+    if (lastVisible) {
+      packagesQuery = query(
+        collection(db, "package_info"),
+        where("agentId", "==", agentId),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(PACKAGES_PER_PAGE)
+      );
+    }
+
+    console.log("Executing query...");
+    const querySnapshot = await getDocs(packagesQuery);
+    console.log("Query returned", querySnapshot.size, "documents");
+
+    const lastVisibleDoc =
+      querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+
+    const packages = await Promise.all(
+      querySnapshot.docs.map(async (docSnapshot) => {
+        const data = docSnapshot.data();
+        console.log("Package data:", { id: docSnapshot.id, ...data });
+
+        // Handle both old and new flight info structures
+        let flightInfoData = null;
+        if (data.flight_info) {
+          if (typeof data.flight_info === "string") {
+            // Old structure - fetch from separate document
+            const flightInfoRef = doc(db, "flight_info", data.flight_info);
+            const flightInfoDoc = await getDoc(flightInfoRef);
+            if (flightInfoDoc.exists()) {
+              const flightInfo = flightInfoDoc.data();
+              const departingTime = safeToDate(flightInfo.departing_time);
+              const arrivingToTime = safeToDate(flightInfo.arriving_to_time);
+              const returningFromTime = safeToDate(
+                flightInfo.returning_from_time
+              );
+              const returningToTime = safeToDate(flightInfo.returning_to_time);
+              const departureDate = safeToDate(flightInfo.departure_date);
+              const returnDate = safeToDate(flightInfo.return_date);
+
+              flightInfoData = {
+                id: flightInfoDoc.id,
+                departingFrom: flightInfo.departing_from,
+                arrivingTo: flightInfo.arriving_to,
+                returningFrom: flightInfo.returning_from,
+                returningTo: flightInfo.returning_to,
+                departingTime: departingTime || new Date(),
+                arrivingToTime: arrivingToTime || new Date(),
+                returningFromTime: returningFromTime || new Date(),
+                returningToTime: returningToTime || new Date(),
+                departureDate: departureDate || new Date(),
+                returnDate: returnDate || new Date(),
+              };
+            }
+          } else {
+            // New structure - nested object
+            const departingTime = safeToDate(data.flight_info.departing_time);
+            const arrivingToTime = safeToDate(
+              data.flight_info.arriving_to_time
+            );
+            const returningFromTime = safeToDate(
+              data.flight_info.returning_from_time
+            );
+            const returningToTime = safeToDate(
+              data.flight_info.returning_to_time
+            );
+            const departureDate = safeToDate(data.flight_info.departure_date);
+            const returnDate = safeToDate(data.flight_info.return_date);
+
+            flightInfoData = {
+              id: docSnapshot.id,
+              departingFrom: data.flight_info.departing_from,
+              arrivingTo: data.flight_info.arriving_to,
+              returningFrom: data.flight_info.returning_from,
+              returningTo: data.flight_info.returning_to,
+              departingTime: departingTime || new Date(),
+              arrivingToTime: arrivingToTime || new Date(),
+              returningFromTime: returningFromTime || new Date(),
+              returningToTime: returningToTime || new Date(),
+              departureDate: departureDate || new Date(),
+              returnDate: returnDate || new Date(),
+            };
+          }
+        }
+
+        const checkInDate = safeToDate(data.check_in_date);
+        const checkOutDate = safeToDate(data.check_out_date);
+        const checkInTime = safeToDate(data.check_in_time);
+        const checkOutTime = safeToDate(data.check_out_time);
+        const createdAt = safeToDate(data.createdAt);
+        const updatedAt = safeToDate(data.updatedAt);
+
+        return {
+          id: docSnapshot.id,
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          type: data.type,
+          image: data.banner_image,
+          rating: data.rating,
+          allinclusive: data.is_all_inclusive,
+          roomType: data.room_type,
+          amenities: data.amenities,
+          isFeatured: data.is_featured_package,
+          bathrooms: data.baths,
+          bedrooms: data.beds,
+          guestAmount: data.guest_amount,
+          checkInDate: checkInDate || new Date(),
+          checkOutDate: checkOutDate || new Date(),
+          checkInTime: checkInTime || new Date(),
+          checkOutTime: checkOutTime || new Date(),
+          flightInfo: flightInfoData,
+          agent: data.agent,
+          createdAt: createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: updatedAt?.toISOString() || new Date().toISOString(),
+        } as Package;
+      })
+    );
+
+    console.log("Processed packages:", packages);
+    return {
+      packages,
+      lastVisible: lastVisibleDoc,
+    };
+  } catch (error) {
+    console.error("Error getting agent packages:", error);
+    throw error;
+  }
+};
