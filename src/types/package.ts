@@ -29,7 +29,9 @@ export interface Package {
     returningFrom?: string;
     returningTo?: string;
     departingTime?: Date;
-    returningTime?: Date;
+    arrivingToTime?: Date;
+    returningFromTime?: Date;
+    returningToTime?: Date;
     departureDate?: Date;
     returnDate?: Date;
   };
