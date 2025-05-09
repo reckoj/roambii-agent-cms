@@ -1,4 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { auth } from '@/lib/firebase/config';
+import { signOut } from 'firebase/auth';
 
 interface Agent {
   id: string;
@@ -21,6 +23,18 @@ const initialState: AuthState = {
   error: null,
 };
 
+export const logoutUserAsync = createAsyncThunk(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await signOut(auth);
+      return null;
+    } catch (error) {
+      return rejectWithValue('Failed to logout');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -41,6 +55,23 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(logoutUserAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(logoutUserAsync.fulfilled, (state) => {
+        state.agent = null;
+        state.isAuthenticated = false;
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(logoutUserAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
