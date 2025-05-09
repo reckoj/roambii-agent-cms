@@ -84,20 +84,26 @@ const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
       return;
     }
 
-    onSave({
-      id: activity?.id, // Include id if editing
+    const activityData: Partial<Activity> = {
       title: title.trim(),
       time,
       type: type as "transport" | "accommodation" | "activity" | "food",
       notes: notes.trim(),
-    });
+    };
+
+    // Only include id if we're editing an existing activity
+    if (activity?.id) {
+      activityData.id = activity.id;
+    }
+
+    onSave(activityData);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
             {activity?.id ? "Edit Activity" : "Add Activity"}
@@ -188,7 +194,7 @@ const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
                   id="activity-time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                 />
               </div>
             </div>
@@ -208,7 +214,7 @@ const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter activity title"
                 required
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 text-gray-900"
               />
             </div>
 
@@ -226,7 +232,7 @@ const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add additional details..."
                 rows={4}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 text-gray-900"
               />
             </div>
           </form>
