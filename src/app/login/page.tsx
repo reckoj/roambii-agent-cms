@@ -7,6 +7,7 @@ import { useAppDispatch } from "@/lib/redux/hooks";
 import { loginUserAsync } from "@/lib/redux/slices/authSlice";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -118,12 +119,12 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <a
+              <Link
                 href="/forgot-password"
                 className="text-sm text-teal-600 hover:text-teal-700"
               >
                 Forgot your password?
-              </a>
+              </Link>
             </div>
           </form>
         </div>
