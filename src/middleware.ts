@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '@/lib/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
 
 export async function middleware(request: NextRequest) {
   // Check cookies and headers for authentication
@@ -41,23 +39,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // For dashboard routes, check if user is an agent
-  if (isDashboardPage && isAuthenticated) {
-    const userId = userIdCookie?.value;
-    if (userId) {
-      try {
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists() || !userDoc.data().isAgent) {
-          // If user is not an agent, redirect to login
-          return NextResponse.redirect(new URL('/login', request.url));
-        }
-      } catch (error) {
-        console.error('Error checking agent status:', error);
-        return NextResponse.redirect(new URL('/login', request.url));
-      }
-    }
+  // For dashboard routes, check if user is authenticated
+  if (isDashboardPage && !isAuthenticated) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // Redirect unauthenticated users to login

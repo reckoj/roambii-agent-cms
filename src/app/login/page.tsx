@@ -28,7 +28,13 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    console.log("Login attempt with email:", email);
+
+    // Ensure we're on the client side
+    if (typeof window === 'undefined') {
+      setError("Authentication can only be performed on the client side");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const resultAction = await dispatch(loginUserAsync({ email, password }));
@@ -38,7 +44,6 @@ export default function LoginPage() {
         resultAction.payload
       ) {
         const user = resultAction.payload as any;
-        console.log("Login successful:", user);
 
         // Store user data in localStorage
         storeUserInLocalStorage({
@@ -53,7 +58,6 @@ export default function LoginPage() {
 
         // Check and store subscription status
         const hasSubscription = await checkAndStoreSubscriptionStatus(user.id);
-        console.log("Subscription status:", hasSubscription);
 
         // Redirect based on subscription status
         if (hasSubscription) {

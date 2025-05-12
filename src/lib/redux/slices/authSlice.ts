@@ -29,6 +29,11 @@ const initialState: AuthState = {
 export const loginUserAsync = createAsyncThunk(
   'auth/login',
   async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+    // Ensure we're on the client side
+    if (typeof window === 'undefined') {
+      return rejectWithValue('Authentication can only be performed on the client side');
+    }
+
     try {
       console.log('Attempting to sign in with:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -71,6 +76,11 @@ export const loginUserAsync = createAsyncThunk(
 export const logoutUserAsync = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
+    // Ensure we're on the client side
+    if (typeof window === 'undefined') {
+      return rejectWithValue('Logout can only be performed on the client side');
+    }
+
     try {
       // Use our helper to handle all the cleanup
       await logoutUser();
@@ -79,8 +89,6 @@ export const logoutUserAsync = createAsyncThunk(
       // This ensures the Redux state gets cleared properly
       return null;
     } catch (error) {
-      console.error('Error in logoutUserAsync:', error);
-      
       // Don't reject - we want the reducer to still reset the auth state
       // even if there was an error during logout
       return null;
@@ -91,6 +99,11 @@ export const logoutUserAsync = createAsyncThunk(
 export const resetPasswordAsync = createAsyncThunk(
   'auth/resetPassword',
   async (email: string, { rejectWithValue }) => {
+    // Ensure we're on the client side
+    if (typeof window === 'undefined') {
+      return rejectWithValue('Password reset can only be performed on the client side');
+    }
+
     try {
       await sendPasswordResetEmail(auth, email);
       return true;
