@@ -4,8 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { subscriptionService } from '../lib/subscription-service';
 import { SubscriptionPlan } from '../types/subscription';
-import { useAppSelector } from '@/lib/redux/hooks';
-import { ArrowRight, Check, AlertTriangle } from 'lucide-react';
+import { useAppSelector, useAppDispatch } from '@/lib/redux/hooks';
+import { ArrowRight, Check, AlertTriangle, LogOut } from 'lucide-react';
+import { logoutUserAsync } from '@/lib/redux/slices/authSlice';
+import { useRouter } from 'next/navigation';
 
 // Create a default plan if none is found
 const createDefaultPlan = (): SubscriptionPlan => ({
@@ -55,6 +57,17 @@ export const SubscriptionPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [stripeError, setStripeError] = useState<boolean>(stripePromise === null);
   const agent = useAppSelector((state) => state.auth.agent);
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logoutUserAsync());
+      router.push('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -182,6 +195,19 @@ export const SubscriptionPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-extrabold text-gray-900">
+            Join Roambii
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </button>
+        </div>
+
         {stripeError && (
           <div className="mb-8 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
             <div className="flex items-start">
@@ -212,9 +238,6 @@ export const SubscriptionPage: React.FC = () => {
         )}
 
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-            Join Roambii
-          </h1>
           <p className="text-lg text-gray-600 max-w-xl mx-auto">
             Access all features and take your travel agency to the next level with our comprehensive platform.
           </p>

@@ -2,6 +2,8 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { auth } from '@/lib/firebase/config';
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { ensureUserDocument, logoutUser } from '@/lib/auth-helpers';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 interface Agent {
   id: string;
@@ -34,6 +36,16 @@ export const loginUserAsync = createAsyncThunk(
       
       console.log('Firebase auth successful, user:', user.uid);
       
+      // Get user document from Firestore to check if they are an agent
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists() || !userDoc.data().isAgent) {
+        // Sign out the user if they are not an agent
+        await signOut(auth);
+        return rejectWithValue('Access denied. Only agents can access this platform.');
+      }
+      
       // Ensure user document exists in Firestore
       await ensureUserDocument(
         user.uid,
@@ -50,7 +62,7 @@ export const loginUserAsync = createAsyncThunk(
         avatar: user.photoURL || undefined,
       };
     } catch (error: any) {
-      console.error('Login error:', error);
+      // Handle errors without logging to console
       return rejectWithValue(error.message || 'Invalid email or password');
     }
   }

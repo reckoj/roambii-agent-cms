@@ -38,6 +38,15 @@ export default function AuthProvider({
     // Set loading state
     dispatch(setLoading(true));
 
+    // Skip Firebase operations if we're on the login page
+    const path = window.location.pathname;
+    if (path.includes('/login')) {
+      console.log('On login page, skipping Firebase operations');
+      dispatch(setLoading(false));
+      setAuthChecked(true);
+      return;
+    }
+
     const checkLocalStorage = async () => {
       try {
         const localUser = getUserFromLocalStorage();
@@ -51,8 +60,11 @@ export default function AuthProvider({
         // Try to ensure the user exists in Firestore but don't fail if permissions error
         try {
           await ensureUserDocument(localUser.id, localUser.email, localUser.name);
-        } catch (error) {
-          console.error('Error ensuring user document, but continuing:', error);
+        } catch (error: any) {
+          // Only log non-permission errors
+          if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+            console.error('Error ensuring user document, but continuing:', error);
+          }
           // Continue even if this fails due to permissions
         }
         
@@ -69,13 +81,19 @@ export default function AuthProvider({
         // Check subscription status but don't fail if it errors
         try {
           await checkAndStoreSubscriptionStatus(localUser.id);
-        } catch (error) {
-          console.error('Error checking subscription status:', error);
+        } catch (error: any) {
+          // Only log non-permission errors
+          if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+            console.error('Error checking subscription status:', error);
+          }
         }
         
         return true;
-      } catch (error) {
-        console.error('Error in checkLocalStorage:', error);
+      } catch (error: any) {
+        // Only log non-permission errors
+        if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+          console.error('Error in checkLocalStorage:', error);
+        }
         return false;
       }
     };
@@ -94,8 +112,11 @@ export default function AuthProvider({
               user.email || undefined, 
               user.displayName || undefined
             );
-          } catch (error) {
-            console.error('Error ensuring user document, but continuing:', error);
+          } catch (error: any) {
+            // Only log non-permission errors
+            if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+              console.error('Error ensuring user document, but continuing:', error);
+            }
             // Continue even if this fails due to permissions
           }
           
@@ -115,8 +136,11 @@ export default function AuthProvider({
           // Check subscription status but don't fail if it errors
           try {
             await checkAndStoreSubscriptionStatus(user.uid);
-          } catch (error) {
-            console.error('Error checking subscription status:', error);
+          } catch (error: any) {
+            // Only log non-permission errors
+            if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+              console.error('Error checking subscription status:', error);
+            }
           }
         } else {
           // User is signed out of Firebase Auth
@@ -157,15 +181,18 @@ export default function AuthProvider({
             }
           }
         }
-      } catch (error) {
-        console.error('Error handling auth state change:', error);
+      } catch (error: any) {
+        // Only log non-permission errors
+        if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+          console.error('Error handling auth state change:', error);
+        }
       } finally {
         dispatch(setLoading(false));
         setAuthChecked(true);
       }
     };
 
-    // First try to use onAuthStateChanged
+    // Only set up auth listener if we're not on the login page
     const unsubscribe = onAuthStateChanged(auth, handleAuthStateChange);
 
     return () => {
@@ -177,26 +204,20 @@ export default function AuthProvider({
   // Handle user logout when errors are detected
   useEffect(() => {
     const handleErrors = (event: ErrorEvent) => {
+      // Skip error handling if we're on the login page
+      const path = window.location.pathname;
+      if (path.includes('/login')) {
+        return;
+      }
+
       // Check if the error is related to Firestore permissions
       if (event.error && (
         (event.error.message && event.error.message.includes('permission-denied')) ||
-        (event.error.code && event.error.code === 'permission-denied')
+        (event.error.code && event.error.code === 'permission-denied') ||
+        (event.error.message && event.error.message.includes('insufficient permissions'))
       )) {
-        console.warn('Detected Firestore permission error, handling gracefully');
-        
-        // If user is already logged out (no auth state), just clear cookies
-        if (!auth.currentUser) {
-          // Clear cookies and localStorage
-          Cookies.remove('lastUserId');
-          Cookies.remove('hasSubscription');
-          
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('lastUserId');
-            localStorage.removeItem('userEmail');
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userAvatar');
-          }
-        }
+        // Silently handle permission errors
+        return;
       }
     };
     

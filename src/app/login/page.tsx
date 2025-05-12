@@ -62,7 +62,7 @@ export default function LoginPage() {
           router.push("/subscribe");
         }
       } else {
-        console.error("Login failed:", resultAction);
+        // Handle access denied error without logging to console
         const errorMessage =
           typeof resultAction.payload === "string"
             ? resultAction.payload
@@ -70,7 +70,7 @@ export default function LoginPage() {
         setError(errorMessage);
       }
     } catch (err: any) {
-      console.error("Login error:", err);
+      // Handle errors without logging to console
       setError(err.message || "An unexpected error occurred");
     } finally {
       setIsLoading(false);

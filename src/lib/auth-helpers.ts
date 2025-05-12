@@ -39,36 +39,41 @@ export async function ensureUserDocument(userId: string, email?: string, name?: 
             id: userId,
             email: storedEmail || '',
             name: storedName || '',
-            isAgent: true,
+            isAgent: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
           console.log('[Auth Helper] User document created successfully');
         } catch (writeError: any) {
-          console.error('[Auth Helper] Firestore write error:', writeError);
-          console.error('[Auth Helper] Error code:', writeError.code);
-          console.error('[Auth Helper] Error message:', writeError.message);
-          
-          // Don't throw, just log the error
+          // Only log non-permission errors
+          if (writeError.code !== 'permission-denied' && !writeError.message?.includes('insufficient permissions')) {
+            console.error('[Auth Helper] Firestore write error:', writeError);
+            console.error('[Auth Helper] Error code:', writeError.code);
+            console.error('[Auth Helper] Error message:', writeError.message);
+          }
           return false;
         }
       } else {
         console.log('[Auth Helper] User document already exists');
       }
     } catch (readError: any) {
-      console.error('[Auth Helper] Firestore read error:', readError);
-      console.error('[Auth Helper] Error code:', readError.code);
-      console.error('[Auth Helper] Error message:', readError.message);
-      
-      // Don't throw, just log the error
+      // Only log non-permission errors
+      if (readError.code !== 'permission-denied' && !readError.message?.includes('insufficient permissions')) {
+        console.error('[Auth Helper] Firestore read error:', readError);
+        console.error('[Auth Helper] Error code:', readError.code);
+        console.error('[Auth Helper] Error message:', readError.message);
+      }
       return false;
     }
     
     return true;
   } catch (error: any) {
-    console.error('[Auth Helper] Error ensuring user document:', error);
-    console.error('[Auth Helper] Error code:', error.code);
-    console.error('[Auth Helper] Error message:', error.message);
+    // Only log non-permission errors
+    if (error.code !== 'permission-denied' && !error.message?.includes('insufficient permissions')) {
+      console.error('[Auth Helper] Error ensuring user document:', error);
+      console.error('[Auth Helper] Error code:', error.code);
+      console.error('[Auth Helper] Error message:', error.message);
+    }
     return false;
   }
 }
