@@ -32,15 +32,15 @@ export default function BookingFormPage() {
   const router = useRouter();
   const params = useParams();
   const dispatch = useAppDispatch();
+  const { packages } = useAppSelector((state) => state.packages);
 
   const { agent } = useAppSelector((state) => state.auth);
   const { selectedBooking, loading, error } = useAppSelector(
     (state) => state.bookings
   );
-  const { packages } = useAppSelector((state) => state.packages);
 
-  const isEdit = params.action === "edit";
-  const bookingId = params.id as string;
+  const isEdit = params?.action === "edit";
+  const bookingId = params?.id as string;
 
   const [formData, setFormData] = useState<BookingFormData>({
     clientName: "",

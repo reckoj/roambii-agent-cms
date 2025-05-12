@@ -18,6 +18,8 @@ interface SubscriptionData {
   subscription?: any;
   rawSubscription?: any;
   customerId?: string;
+  invoiceUrl?: string;
+  invoicePdf?: string;
 }
 
 interface UserData {
@@ -31,7 +33,6 @@ export default function SubscriptionSuccess() {
     "loading"
   );
   const [message, setMessage] = useState("");
-  const [debug, setDebug] = useState<any>(null);
   const [sessionError, setSessionError] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -42,11 +43,8 @@ export default function SubscriptionSuccess() {
   // First try to get the user from Redux state
   useEffect(() => {
     const checkAuthentication = async () => {
-      console.log("Checking authentication state...");
-
       // Check if we have the user in Redux state
       if (agent?.id) {
-        console.log("User found in Redux state:", agent.id);
         setUserId(agent.id);
         return;
       }
@@ -54,8 +52,6 @@ export default function SubscriptionSuccess() {
       // If not, wait a moment for Firebase auth to initialize
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-          console.log("User authenticated via Firebase:", user.uid);
-
           // Ensure user exists in Firestore
           await ensureUserDocument(
             user.uid,
@@ -75,13 +71,9 @@ export default function SubscriptionSuccess() {
 
           setUserId(user.uid);
         } else {
-          console.log("No authenticated user found in Firebase");
-
           // Try to get user from localStorage
           const localUser = getUserFromLocalStorage();
           if (localUser) {
-            console.log("Using stored user ID:", localUser.id);
-
             // Ensure user exists in Firestore
             await ensureUserDocument(
               localUser.id,
@@ -186,9 +178,6 @@ export default function SubscriptionSuccess() {
       const data: SubscriptionData = await response.json();
 
       // Save full response for debugging
-      setDebug(data);
-
-      // Debug logging
       console.log("API response received");
 
       // Try to get data from safe response or fall back to raw data
@@ -338,7 +327,9 @@ export default function SubscriptionSuccess() {
 
         setStatus("success");
         setMessage(
-          "Your subscription has been activated successfully! Redirecting to dashboard..."
+          "Your subscription has been activated successfully! " +
+            "\n" +
+            "Please check your email for the receipt."
         );
 
         // Redirect to dashboard after 3 seconds
@@ -409,16 +400,6 @@ export default function SubscriptionSuccess() {
           {status === "loading" && (
             <div className="mt-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div>
-            </div>
-          )}
-
-          {/* Debug info - remove in production */}
-          {status === "error" && debug && (
-            <div className="mt-8 p-4 bg-gray-100 rounded overflow-auto max-h-64 text-left">
-              <p className="font-bold">Debug Info:</p>
-              <pre className="text-xs overflow-auto">
-                {JSON.stringify(debug, null, 2)}
-              </pre>
             </div>
           )}
         </div>

@@ -8,9 +8,12 @@ import { loginUserAsync } from "@/lib/redux/slices/authSlice";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { storeUserInLocalStorage, checkAndStoreSubscriptionStatus } from '@/lib/auth-helpers';
-import LoginDebugger from "@/components/LoginDebug";
-import Cookies from 'js-cookie';
+import {
+  storeUserInLocalStorage,
+  checkAndStoreSubscriptionStatus,
+} from "@/lib/auth-helpers";
+// import LoginDebugger from "@/components/LoginDebug";
+import Cookies from "js-cookie";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,30 +28,33 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    console.log('Login attempt with email:', email);
+    console.log("Login attempt with email:", email);
 
     try {
       const resultAction = await dispatch(loginUserAsync({ email, password }));
-      
-      if (resultAction.meta?.requestStatus === 'fulfilled' && resultAction.payload) {
+
+      if (
+        resultAction.meta?.requestStatus === "fulfilled" &&
+        resultAction.payload
+      ) {
         const user = resultAction.payload as any;
-        console.log('Login successful:', user);
-        
+        console.log("Login successful:", user);
+
         // Store user data in localStorage
         storeUserInLocalStorage({
           id: user.id,
           email: user.email,
           name: user.name,
-          avatar: user.avatar
+          avatar: user.avatar,
         });
-        
+
         // Set a cookie for server-side auth checks
-        Cookies.set('lastUserId', user.id, { expires: 7 }); // Expires in 7 days
-        
+        Cookies.set("lastUserId", user.id, { expires: 7 }); // Expires in 7 days
+
         // Check and store subscription status
         const hasSubscription = await checkAndStoreSubscriptionStatus(user.id);
-        console.log('Subscription status:', hasSubscription);
-        
+        console.log("Subscription status:", hasSubscription);
+
         // Redirect based on subscription status
         if (hasSubscription) {
           router.push("/dashboard");
@@ -56,10 +62,11 @@ export default function LoginPage() {
           router.push("/subscribe");
         }
       } else {
-        console.error('Login failed:', resultAction);
-        const errorMessage = typeof resultAction.payload === 'string' 
-          ? resultAction.payload 
-          : "Invalid email or password";
+        console.error("Login failed:", resultAction);
+        const errorMessage =
+          typeof resultAction.payload === "string"
+            ? resultAction.payload
+            : "Invalid email or password";
         setError(errorMessage);
       }
     } catch (err: any) {
@@ -76,22 +83,27 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome Back
+            </h1>
             <p className="text-gray-600">Sign in to your account</p>
-        </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
                 </div>
-              <input
-                id="email"
-                type="email"
+                <input
+                  id="email"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 placeholder-gray-400 text-gray-900"
@@ -102,7 +114,10 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Password
               </label>
               <div className="relative">
@@ -162,7 +177,7 @@ export default function LoginPage() {
           </form>
 
           {/* Debug component - REMOVE IN PRODUCTION */}
-          <LoginDebugger />
+          {/* <LoginDebugger /> */}
         </div>
       </div>
 
