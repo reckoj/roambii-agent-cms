@@ -701,3 +701,103 @@ export const getAgentPackages = async (
     throw error;
   }
 };
+
+// Get bookings for a specific user
+export const getUserBookings = async (userId: string): Promise<Booking[]> => {
+  try {
+    console.log("Searching for bookings with userId:", userId);
+    const bookingsCollection = collection(db, "bookings");
+    const bookingDocs = new Map();
+    
+    // 1. Try client_id field
+    const clientIdQuery = query(
+      bookingsCollection,
+      where("client_id", "==", userId),
+      orderBy("created_at", "desc")
+    );
+    
+    console.log("Querying by client_id field");
+    const clientIdSnapshot = await getDocs(clientIdQuery);
+    console.log(`Found ${clientIdSnapshot.size} bookings with client_id match`);
+    clientIdSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 2. Try clientId field
+    const clientIdDirectQuery = query(
+      bookingsCollection,
+      where("clientId", "==", userId),
+      orderBy("created_at", "desc")
+    );
+    
+    console.log("Querying by clientId field");
+    const clientIdDirectSnapshot = await getDocs(clientIdDirectQuery);
+    console.log(`Found ${clientIdDirectSnapshot.size} bookings with clientId match`);
+    clientIdDirectSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 3. Try clientRelationship.userId field
+    const clientRelationshipQuery = query(
+      bookingsCollection,
+      where("clientRelationship.userId", "==", userId),
+      orderBy("created_at", "desc")
+    );
+    
+    console.log("Querying by clientRelationship.userId field");
+    const clientRelationshipSnapshot = await getDocs(clientRelationshipQuery);
+    console.log(`Found ${clientRelationshipSnapshot.size} bookings with clientRelationship.userId match`);
+    clientRelationshipSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 4. Try user field if it's a direct reference
+    const userQuery = query(
+      bookingsCollection,
+      where("user", "==", userId),
+      orderBy("created_at", "desc")
+    );
+    
+    console.log("Querying by user field");
+    const userSnapshot = await getDocs(userQuery);
+    console.log(`Found ${userSnapshot.size} bookings with user field match`);
+    userSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 5. Try user field if it's a path reference
+    const userRefQuery = query(
+      bookingsCollection,
+      where("user", "==", `users/${userId}`),
+      orderBy("created_at", "desc")
+    );
+    
+    console.log("Querying by user field as path reference");
+    const userRefSnapshot = await getDocs(userRefQuery);
+    console.log(`Found ${userRefSnapshot.size} bookings with user path reference match`);
+    userRefSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 6. Try travelerInfo.email if it matches the userId (email)
+    if (userId.includes('@')) {
+      const emailQuery = query(
+        bookingsCollection,
+        where("travelerInfo.email", "==", userId),
+        orderBy("created_at", "desc")
+      );
+      
+      console.log("Querying by travelerInfo.email field");
+      const emailSnapshot = await getDocs(emailQuery);
+      console.log(`Found ${emailSnapshot.size} bookings with travelerInfo.email match`);
+      emailSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    }
+    
+    // If we haven't found any bookings, and the userId starts with 'embedded-',
+    // try again with the ID portion after removing the 'embedded-' prefix
+    if (bookingDocs.size === 0 && userId.startsWith('embedded-')) {
+      const actualUserId = userId.replace('embedded-', '');
+      console.log("Trying again with actual userId (without embedded- prefix):", actualUserId);
+      return getUserBookings(actualUserId);
+    }
+    
+    // Combine all results and convert to Booking objects
+    const bookings = Array.from(bookingDocs.values()).map(doc => convertToBooking(doc));
+    console.log(`Returning ${bookings.length} total bookings`);
+    
+    return bookings;
+  } catch (error) {
+    console.error("Error getting user bookings:", error);
+    throw error;
+  }
+};
