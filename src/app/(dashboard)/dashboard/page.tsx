@@ -34,6 +34,8 @@ import { Line, Bar, Doughnut } from "react-chartjs-2";
 import RevenueInsights from "@/components/dashboard/RevenueInsights";
 import PackagePerformance from "@/components/dashboard/PackagePerformance";
 import UpcomingBookings from "@/components/dashboard/UpcomingBookings";
+import { getAgentClientsFromBookings } from "@/lib/client-service";
+import { getAgentPackages } from "@/lib/package-service";
 
 // Register ChartJS components
 ChartJS.register(
@@ -100,6 +102,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StatsCard[]>([]);
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [clientCount, setClientCount] = useState<number>(0);
+  const [clientsLoading, setClientsLoading] = useState<boolean>(true);
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [revenueLoading, setRevenueLoading] = useState<boolean>(true);
+  const [packageCount, setPackageCount] = useState<number>(0);
+  const [packagesLoading, setPackagesLoading] = useState<boolean>(true);
 
   // Sample data for new components
   const [packagePerformanceData, setPackagePerformanceData] = useState<any[]>(
@@ -112,10 +120,56 @@ export default function DashboardPage() {
   const [bookingStatusData, setBookingStatusData] = useState<any>(null);
   const [monthlyBookingsData, setMonthlyBookingsData] = useState<any>(null);
 
-  // Fetch booking stats when component mounts
+  // Fetch booking stats and real-time data when component mounts
   useEffect(() => {
     if (agent) {
-      dispatch(fetchBookingStatsAsync(agent.id));
+      // Fetch booking stats (including revenue data)
+      dispatch(fetchBookingStatsAsync(agent.id))
+        .then((action) => {
+          if (fetchBookingStatsAsync.fulfilled.match(action)) {
+            // Extract revenue data from the response
+            const stats = action.payload;
+            if (stats) {
+              setTotalRevenue(stats.revenue);
+            }
+            setRevenueLoading(false);
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching booking stats:", error);
+          setRevenueLoading(false);
+        });
+
+      // Fetch real client count
+      const fetchClientCount = async () => {
+        try {
+          setClientsLoading(true);
+          const clients = await getAgentClientsFromBookings(agent.id);
+          setClientCount(clients.length);
+        } catch (error) {
+          console.error("Error fetching client count:", error);
+          setClientCount(0);
+        } finally {
+          setClientsLoading(false);
+        }
+      };
+
+      // Fetch package count
+      const fetchPackageCount = async () => {
+        try {
+          setPackagesLoading(true);
+          const packageData = await getAgentPackages(agent.id);
+          setPackageCount(packageData.packages.length);
+        } catch (error) {
+          console.error("Error fetching package count:", error);
+          setPackageCount(0);
+        } finally {
+          setPackagesLoading(false);
+        }
+      };
+
+      fetchClientCount();
+      fetchPackageCount();
     }
   }, [agent, dispatch]);
 
@@ -305,9 +359,9 @@ export default function DashboardPage() {
       setStats([
         {
           name: "Total Revenue",
-          value: bookingStats
-            ? `$${bookingStats.revenue.toLocaleString()}`
-            : "$12,650",
+          value: revenueLoading
+            ? "Loading..."
+            : `$${totalRevenue.toLocaleString()}`,
           prevValue: "$11,300",
           change: statsDelta.revenue,
           changeType: statsDelta.revenueDelta as "increase" | "decrease",
@@ -316,7 +370,7 @@ export default function DashboardPage() {
         },
         {
           name: "Packages",
-          value: packages ? packages.length.toString() : "28",
+          value: packagesLoading ? "Loading..." : packageCount.toString(),
           prevValue: "26",
           change: statsDelta.packages,
           changeType: statsDelta.packagesDelta as "increase" | "decrease",
@@ -334,7 +388,7 @@ export default function DashboardPage() {
         },
         {
           name: "Clients",
-          value: "42",
+          value: clientsLoading ? "Loading..." : clientCount.toString(),
           prevValue: "39",
           change: statsDelta.clients,
           changeType: statsDelta.clientsDelta as "increase" | "decrease",
@@ -388,7 +442,16 @@ export default function DashboardPage() {
 
       setLoading(false);
     }, 1000);
-  }, [bookingStats, packages]);
+  }, [
+    bookingStats,
+    packages,
+    clientCount,
+    clientsLoading,
+    totalRevenue,
+    revenueLoading,
+    packageCount,
+    packagesLoading,
+  ]);
 
   const lineChartOptions = {
     responsive: true,

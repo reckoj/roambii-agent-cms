@@ -10,11 +10,16 @@ import {
   ChatBubbleLeftIcon,
   ArrowPathIcon,
   ChevronDownIcon,
+  UsersIcon,
+  TagIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 import { Client, ClientFilter } from "@/types/client";
 import { getAgentClients, getAgentClientsFromBookings, formatDate, updateClientNotes } from "@/lib/client-service";
 import { useAppSelector } from "@/lib/redux/hooks";
 import Modal from "@/components/shared/Modal";
+import { getBookingStats } from "@/lib/booking-service";
+import { getAgentPackages } from "@/lib/booking-service";
 
 // Format currency utility function
 const formatCurrency = (amount: number) => {
@@ -46,6 +51,38 @@ export default function ClientsPage() {
   const [notesLoading, setNotesLoading] = useState(false);
   const [sortBy, setSortBy] = useState<"lastBookingDate" | "totalSpent" | "totalBookings">("lastBookingDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [dashboardStats, setDashboardStats] = useState({
+    packageCount: 0,
+    clientCount: 0,
+    totalRevenue: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+  
+  // Load dashboard stats
+  const loadDashboardStats = async () => {
+    if (!agent) return;
+    
+    setStatsLoading(true);
+    
+    try {
+      // Get booking stats (revenue)
+      const bookingStats = await getBookingStats(agent.id);
+      
+      // Get package count
+      const packageData = await getAgentPackages(agent.id);
+      
+      // Client count will be updated after clients are loaded
+      setDashboardStats({
+        packageCount: packageData.packages.length,
+        clientCount: 0, // Will be updated when clients are loaded
+        totalRevenue: bookingStats.revenue,
+      });
+    } catch (error) {
+      console.error("Error loading dashboard stats:", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
   
   // Load clients
   const loadClients = async () => {
@@ -101,6 +138,12 @@ export default function ClientsPage() {
       console.log(`After security filter: ${clientsData.length} clients remain`);
       
       setClients(clientsData);
+      
+      // Update client count in dashboard stats
+      setDashboardStats(prev => ({
+        ...prev,
+        clientCount: clientsData.length,
+      }));
       
       // Show error if all methods failed and no clients were found
       if (clientsData.length === 0 && errorMessage) {
@@ -167,10 +210,11 @@ export default function ClientsPage() {
     );
   });
   
-  // Load clients on initial render and when sort changes
+  // Load clients and stats on initial render
   useEffect(() => {
     if (agent) {
       loadClients();
+      loadDashboardStats();
     }
   }, [agent, sortBy, sortDirection]);
   
@@ -202,7 +246,10 @@ export default function ClientsPage() {
         </div>
         <div className="mt-4 sm:mt-0 flex items-center">
           <button
-            onClick={() => loadClients()}
+            onClick={() => {
+              loadClients();
+              loadDashboardStats();
+            }}
             className="mr-3 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
           >
             <ArrowPathIcon className="h-4 w-4 mr-1" />
@@ -249,6 +296,80 @@ export default function ClientsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Dashboard Stats */}
+      <div className="mt-6 mb-8">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          {/* Clients stat */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <UsersIcon className="h-6 w-6 text-cyan-600" aria-hidden="true" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Clients</dt>
+                    <dd>
+                      {statsLoading ? (
+                        <div className="h-7 w-16 bg-gray-200 animate-pulse rounded"></div>
+                      ) : (
+                        <div className="text-lg font-medium text-gray-900">{dashboardStats.clientCount}</div>
+                      )}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Packages stat */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <TagIcon className="h-6 w-6 text-cyan-600" aria-hidden="true" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Packages</dt>
+                    <dd>
+                      {statsLoading ? (
+                        <div className="h-7 w-16 bg-gray-200 animate-pulse rounded"></div>
+                      ) : (
+                        <div className="text-lg font-medium text-gray-900">{dashboardStats.packageCount}</div>
+                      )}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Revenue stat */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CurrencyDollarIcon className="h-6 w-6 text-cyan-600" aria-hidden="true" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
+                    <dd>
+                      {statsLoading ? (
+                        <div className="h-7 w-28 bg-gray-200 animate-pulse rounded"></div>
+                      ) : (
+                        <div className="text-lg font-medium text-gray-900">{formatCurrency(dashboardStats.totalRevenue)}</div>
+                      )}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -23,14 +23,17 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata = {
   title: "Roambii Agent Dashboard",
   description: "Manage your travel agency, bookings, packages, and clients",
+  icons: {
+    icon: [{ url: "/roambii-logo2.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   // Add console log for debugging
-  if (typeof window !== 'undefined') {
-    console.log('RootLayout rendered, app initialized');
+  if (typeof window !== "undefined") {
+    console.log("RootLayout rendered, app initialized");
   }
-  
+
   return (
     <html lang="en">
       <body className={inter.className}>
