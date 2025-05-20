@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import { ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +16,7 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const oobCode = searchParams.get("oobCode");
+  const oobCode = searchParams?.get("oobCode");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,5 +224,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 } 

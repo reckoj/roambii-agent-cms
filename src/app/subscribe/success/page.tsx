@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/lib/redux/hooks";
 import { db } from "@/lib/firebase/config";
@@ -28,7 +28,7 @@ interface UserData {
   name?: string;
 }
 
-export default function SubscriptionSuccess() {
+function SubscriptionSuccessContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
   );
@@ -121,7 +121,7 @@ export default function SubscriptionSuccess() {
 
     const verifySubscription = async () => {
       try {
-        const sessionId = searchParams!.get("session_id");
+        const sessionId = searchParams?.get("session_id");
 
         if (!sessionId) {
           throw new Error("No session ID found");
@@ -405,5 +405,13 @@ export default function SubscriptionSuccess() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SubscriptionSuccess() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <SubscriptionSuccessContent />
+    </Suspense>
   );
 }
