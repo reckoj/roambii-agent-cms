@@ -335,6 +335,7 @@ export default function DashboardPage() {
       revenue: number;
       image: string | null;
       isFeatured: boolean;
+      agentId: string; // Add agentId for filtering
     }
     
     const packageStats: Record<string, PackageStat> = {};
@@ -342,14 +343,19 @@ export default function DashboardPage() {
     // Initialize with all packages, using the salesCount field
     packages.forEach(pkg => {
       console.log(`Package ${pkg.name} has salesCount: ${pkg.salesCount || 0}, featured: ${pkg.isFeatured}`);
-      packageStats[pkg.id] = {
-        id: pkg.id,
-        name: pkg.name,
-        bookingCount: pkg.salesCount || 0, // Use the salesCount field from the package
-        revenue: (pkg.salesCount || 0) * pkg.price, // Calculate revenue based on sales count
-        image: pkg.image || null,
-        isFeatured: pkg.isFeatured || false,
-      };
+      
+      // Only include packages from the current agent
+      if (pkg.agent?.id === agent?.id) {
+        packageStats[pkg.id] = {
+          id: pkg.id,
+          name: pkg.name,
+          bookingCount: pkg.salesCount || 0, // Use the salesCount field from the package
+          revenue: (pkg.salesCount || 0) * pkg.price, // Calculate revenue based on sales count
+          image: pkg.image || null,
+          isFeatured: pkg.isFeatured || false,
+          agentId: pkg.agent?.id || '',
+        };
+      }
     });
     
     // If we have bookings available, we can use them to refine revenue calculations
@@ -359,6 +365,9 @@ export default function DashboardPage() {
       
       // Update revenue with booking data while preserving the salesCount
       bookings.forEach(booking => {
+        // Only process bookings for the current agent's packages
+        if (booking.agentId !== agent?.id) return;
+        
         let packageIdToUse = booking.packageId;
         
         // Check if package exists in our list
@@ -367,7 +376,7 @@ export default function DashboardPage() {
           const packageName = booking.packageName;
           if (packageName) {
             const matchingPackage = packages.find(p => 
-              p.name.toLowerCase() === packageName.toLowerCase()
+              p.name.toLowerCase() === packageName.toLowerCase() && p.agent?.id === agent?.id
             );
             if (matchingPackage) {
               console.log("Found package by name instead of ID:", matchingPackage.name);
@@ -426,7 +435,7 @@ export default function DashboardPage() {
       setPackagePerformanceData(packageData);
     }
     
-  }, [packages, bookings]);
+  }, [packages, bookings, agent]);
 
   // Generate data for additional components and charts
   useEffect(() => {
@@ -638,20 +647,30 @@ export default function DashboardPage() {
         
         // Create package performance data directly
         if (result.packages.length > 0) {
-          const directPackageData = result.packages
+          // Only include packages from this agent
+          const filteredPackages = result.packages.filter(pkg => pkg.agent?.id === agent.id);
+          
+          // Sort packages by price (as a simple proxy for revenue if we don't have sales data)
+          const sortedPackages = filteredPackages.sort((a, b) => {
+            const aRevenue = (a.salesCount || 0) * a.price;
+            const bRevenue = (b.salesCount || 0) * b.price;
+            return bRevenue - aRevenue;
+          });
+          
+          const directPackageData = sortedPackages
             .slice(0, 5)
             .map(pkg => ({
               id: pkg.id,
               name: pkg.name,
-              bookings: 0,
-              revenue: pkg.price || 0,
+              bookings: pkg.salesCount || 0,
+              revenue: (pkg.salesCount || 0) * pkg.price || 0,
               growth: 0,
               image: pkg.image || '',
             }));
             
           console.log("Setting package data directly from API:", directPackageData);
           setPackagePerformanceData(directPackageData);
-          setPackageCount(result.packages.length);
+          setPackageCount(filteredPackages.length);
         } else {
           console.log("No packages found via direct API call");
         }
