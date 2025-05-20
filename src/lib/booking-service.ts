@@ -426,6 +426,7 @@ export const getBookingStats = async (
     let pendingBookings = 0;
     let cancelledBookings = 0;
     let totalRevenue = 0;
+    let pendingRevenue = 0;
     let revenueThisMonth = 0;
     let bookingsThisMonth = 0;
 
@@ -436,22 +437,41 @@ export const getBookingStats = async (
       totalBookings++;
       
       // Get price from various possible fields
-      const price = parseFloat(data.price) || parseFloat(data.payment?.amount) || parseFloat(data.packageDetails?.price) || 0;
-      console.log(`Booking ${doc.id} price: ${price}`);
-      totalRevenue += price;
-
+      const priceFromMainField = parseFloat(data.price) || 0;
+      const priceFromPayment = parseFloat(data.payment?.amount) || 0;
+      const priceFromPackageDetails = parseFloat(data.packageDetails?.price) || 0;
+      
+      // Detailed logging of all price sources
+      console.log(`Booking ${doc.id} price sources: `, {
+        priceField: data.price,
+        paymentAmount: data.payment?.amount,
+        packageDetailsPrice: data.packageDetails?.price,
+        totalPaid: data.total_paid || data.totalPaid,
+        balance: data.balance
+      });
+      
+      const price = priceFromMainField || priceFromPayment || priceFromPackageDetails || 0;
+      console.log(`Booking ${doc.id} final price: ${price}`);
+      
       // Count by status - handle different case variations
       const status = (data.status || '').toLowerCase();
       if (status === "confirmed" || status === "complete" || status === "completed") {
         confirmedBookings++;
+        // Only add to revenue if booking is confirmed or completed
+        totalRevenue += price;
+        console.log(`Booking ${doc.id} is confirmed/completed. Added ${price} to total revenue. Running total: ${totalRevenue}`);
       } else if (status === "pending" || status === "") {
         pendingBookings++;
+        pendingRevenue += price;
+        console.log(`Booking ${doc.id} is pending. Added ${price} to pending revenue. Running total: ${pendingRevenue}`);
       } else if (status === "cancelled" || status === "canceled") {
         cancelledBookings++;
+        console.log(`Booking ${doc.id} is cancelled. Not adding to revenue.`);
       } else {
         // Default to pending for unknown statuses
         pendingBookings++;
-        console.log(`Booking ${doc.id} has unknown status: ${status}, counting as pending`);
+        pendingRevenue += price;
+        console.log(`Booking ${doc.id} has unknown status: ${status}, counting as pending. Added ${price} to pending revenue. Running total: ${pendingRevenue}`);
       }
 
       // This month's data - try different timestamp fields
@@ -488,7 +508,7 @@ export const getBookingStats = async (
       }
     });
 
-    console.log(`Stats calculation complete. Total: ${totalBookings}, Revenue: ${totalRevenue}`);
+    console.log(`Stats calculation complete. Total: ${totalBookings}, Revenue: ${totalRevenue}, Pending Revenue: ${pendingRevenue}`);
     console.log(`Status counts - Confirmed: ${confirmedBookings}, Pending: ${pendingBookings}, Cancelled: ${cancelledBookings}`);
     
     return {
@@ -497,6 +517,7 @@ export const getBookingStats = async (
       pending: pendingBookings,
       cancelled: cancelledBookings,
       revenue: totalRevenue,
+      pendingRevenue: pendingRevenue,
       revenueMonth: revenueThisMonth,
       bookingsMonth: bookingsThisMonth,
     };
@@ -509,6 +530,7 @@ export const getBookingStats = async (
       pending: 0,
       cancelled: 0,
       revenue: 0,
+      pendingRevenue: 0,
       revenueMonth: 0,
       bookingsMonth: 0,
     };

@@ -36,6 +36,7 @@ export interface BookingStats {
   pending: number;
   cancelled: number;
   revenue: number;
+  pendingRevenue: number;
   revenueMonth: number;
   bookingsMonth: number;
 }

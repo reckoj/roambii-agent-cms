@@ -62,6 +62,7 @@ export default function ClientsPage() {
     packageCount: 0,
     clientCount: 0,
     totalRevenue: 0,
+    pendingRevenue: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -74,20 +75,37 @@ export default function ClientsPage() {
     try {
       // Get booking stats (revenue)
       const bookingStats = await getBookingStats(agent.id);
+      console.log("Booking stats for revenue calculation:", {
+        totalRevenue: bookingStats.revenue,
+        pendingRevenue: bookingStats.pendingRevenue,
+        totalBookings: bookingStats.total,
+        confirmedBookings: bookingStats.confirmed,
+        pendingBookings: bookingStats.pending,
+        cancelledBookings: bookingStats.cancelled,
+        revenueMonth: bookingStats.revenueMonth,
+        bookingsMonth: bookingStats.bookingsMonth
+      });
 
       // Get package count
       const packageData = await getAgentPackages(agent.id);
+      console.log(`Found ${packageData.packages.length} packages for agent`);
+      
+      // Sum the package prices as an alternative revenue metric
+      const totalPackageValue = packageData.packages.reduce((sum, pkg) => sum + (pkg.price || 0), 0);
+      console.log(`Total value of all packages: $${totalPackageValue}`);
 
       // Keep existing client count when updating stats
       setDashboardStats(prev => ({
         packageCount: packageData.packages.length,
         clientCount: prev.clientCount, // Preserve the existing client count
         totalRevenue: bookingStats.revenue,
+        pendingRevenue: bookingStats.pendingRevenue,
       }));
       
       return {
         packageCount: packageData.packages.length,
-        totalRevenue: bookingStats.revenue
+        totalRevenue: bookingStats.revenue,
+        pendingRevenue: bookingStats.pendingRevenue
       };
     } catch (error) {
       console.error("Error loading dashboard stats:", error);
@@ -372,7 +390,7 @@ export default function ClientsPage() {
 
       {/* Dashboard Stats */}
       <div className="mt-6 mb-8">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {/* Clients stat */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
@@ -433,20 +451,20 @@ export default function ClientsPage() {
             </div>
           </div>
 
-          {/* Revenue stat */}
+          {/* Confirmed Revenue stat */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <CurrencyDollarIcon
-                    className="h-6 w-6 text-cyan-600"
+                    className="h-6 w-6 text-green-600"
                     aria-hidden="true"
                   />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Revenue
+                      Confirmed Revenue
                     </dt>
                     <dd>
                       {statsLoading ? (
@@ -454,6 +472,36 @@ export default function ClientsPage() {
                       ) : (
                         <div className="text-lg font-medium text-gray-900">
                           {formatCurrency(dashboardStats.totalRevenue)}
+                        </div>
+                      )}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Pending Revenue stat */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CurrencyDollarIcon
+                    className="h-6 w-6 text-yellow-600"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Pending Revenue
+                    </dt>
+                    <dd>
+                      {statsLoading ? (
+                        <div className="h-7 w-28 bg-gray-200 animate-pulse rounded"></div>
+                      ) : (
+                        <div className="text-lg font-medium text-gray-900">
+                          {formatCurrency(dashboardStats.pendingRevenue)}
                         </div>
                       )}
                     </dd>

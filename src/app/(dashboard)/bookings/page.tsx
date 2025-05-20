@@ -85,7 +85,9 @@ export default function BookingFormPage() {
         price: selectedBooking.price.toString(),
         travelers: selectedBooking.travelers.toString(),
         notes: selectedBooking.notes || "",
-        status: selectedBooking.status,
+        status: ['pending', 'confirmed', 'cancelled', 'completed'].includes(selectedBooking.status) 
+          ? (selectedBooking.status as "pending" | "confirmed" | "cancelled" | "completed") 
+          : "pending",
       });
     }
   }, [isEdit, selectedBooking]);
@@ -179,6 +181,8 @@ export default function BookingFormPage() {
         notes: formData.notes || undefined,
         paymentStatus: "unpaid",
         clientId: "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       if (isEdit) {
