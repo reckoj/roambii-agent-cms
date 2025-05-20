@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const oobCode = searchParams.get("oobCode");
+  const oobCode = searchParams?.get("oobCode");
 
   const {
     register,
