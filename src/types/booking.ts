@@ -12,7 +12,7 @@ export interface Booking {
   price: number;
   totalPaid: number;
   balance: number;
-  status: string;
+  status: "pending" | "confirmed" | "cancelled" | "completed";
   travelers: number;
   notes?: string;
   paymentMethod?: string;
@@ -37,6 +37,7 @@ export interface BookingStats {
   cancelled: number;
   revenue: number;
   pendingRevenue: number;
+  cancelledRevenue: number;
   revenueMonth: number;
   bookingsMonth: number;
 }

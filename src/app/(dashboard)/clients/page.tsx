@@ -63,6 +63,7 @@ export default function ClientsPage() {
     clientCount: 0,
     totalRevenue: 0,
     pendingRevenue: 0,
+    cancelledRevenue: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -78,6 +79,7 @@ export default function ClientsPage() {
       console.log("Booking stats for revenue calculation:", {
         totalRevenue: bookingStats.revenue,
         pendingRevenue: bookingStats.pendingRevenue,
+        cancelledRevenue: bookingStats.cancelledRevenue,
         totalBookings: bookingStats.total,
         confirmedBookings: bookingStats.confirmed,
         pendingBookings: bookingStats.pending,
@@ -100,12 +102,14 @@ export default function ClientsPage() {
         clientCount: prev.clientCount, // Preserve the existing client count
         totalRevenue: bookingStats.revenue,
         pendingRevenue: bookingStats.pendingRevenue,
+        cancelledRevenue: bookingStats.cancelledRevenue,
       }));
       
       return {
         packageCount: packageData.packages.length,
         totalRevenue: bookingStats.revenue,
-        pendingRevenue: bookingStats.pendingRevenue
+        pendingRevenue: bookingStats.pendingRevenue,
+        cancelledRevenue: bookingStats.cancelledRevenue
       };
     } catch (error) {
       console.error("Error loading dashboard stats:", error);
@@ -390,7 +394,7 @@ export default function ClientsPage() {
 
       {/* Dashboard Stats */}
       <div className="mt-6 mb-8">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
           {/* Clients stat */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
@@ -502,6 +506,36 @@ export default function ClientsPage() {
                       ) : (
                         <div className="text-lg font-medium text-gray-900">
                           {formatCurrency(dashboardStats.pendingRevenue)}
+                        </div>
+                      )}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Cancelled Revenue stat */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CurrencyDollarIcon
+                    className="h-6 w-6 text-red-600"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Cancelled Revenue
+                    </dt>
+                    <dd>
+                      {statsLoading ? (
+                        <div className="h-7 w-28 bg-gray-200 animate-pulse rounded"></div>
+                      ) : (
+                        <div className="text-lg font-medium text-gray-900">
+                          {formatCurrency(dashboardStats.cancelledRevenue)}
                         </div>
                       )}
                     </dd>

@@ -180,7 +180,7 @@ export default function DashboardPage() {
       setPackagesLoading(true);
       const result = await getAgentPackages(agent.id);
       console.log(`Loaded ${result.packages.length} packages for agent:`, 
-        result.packages.map(p => p.name));
+        result.packages.map(p => ({ name: p.name, featured: p.isFeatured, id: p.id })));
       
       // Serialize dates in packages to fix Redux errors
       const serializedPackages = result.packages.map(pkg => {
@@ -325,6 +325,7 @@ export default function DashboardPage() {
     }
     
     console.log("Generating package performance data from", packages.length, "packages");
+    console.log("Packages detail:", packages.map(p => ({ id: p.id, name: p.name, isFeatured: p.isFeatured, price: p.price })));
     
     // Create a map to organize package performance data
     interface PackageStat {
@@ -333,19 +334,21 @@ export default function DashboardPage() {
       bookingCount: number;
       revenue: number;
       image: string | null;
+      isFeatured: boolean;
     }
     
     const packageStats: Record<string, PackageStat> = {};
     
     // Initialize with all packages, using the salesCount field
     packages.forEach(pkg => {
-      console.log(`Package ${pkg.name} has salesCount: ${pkg.salesCount || 0}`);
+      console.log(`Package ${pkg.name} has salesCount: ${pkg.salesCount || 0}, featured: ${pkg.isFeatured}`);
       packageStats[pkg.id] = {
         id: pkg.id,
         name: pkg.name,
         bookingCount: pkg.salesCount || 0, // Use the salesCount field from the package
         revenue: (pkg.salesCount || 0) * pkg.price, // Calculate revenue based on sales count
         image: pkg.image || null,
+        isFeatured: pkg.isFeatured || false,
       };
     });
     
@@ -389,7 +392,7 @@ export default function DashboardPage() {
       .filter(pkg => pkg.name && pkg.id) // Make sure we have valid packages
       .sort((a, b) => b.revenue - a.revenue);
     
-    console.log("All sorted packages:", sortedPackages.map(p => `${p.name} (${p.bookingCount} bookings, $${p.revenue})`));
+    console.log("All sorted packages:", sortedPackages.map(p => `${p.name} (${p.bookingCount} bookings, $${p.revenue}, featured: ${p.isFeatured})`));
     
     // Take top packages or all if we have fewer
     const topPackages = sortedPackages.slice(0, Math.min(5, sortedPackages.length));
@@ -404,7 +407,7 @@ export default function DashboardPage() {
       image: pkg.image,
     }));
     
-    console.log("Top packages:", packageData);
+    console.log("Top packages selected for display:", packageData.map(p => p.name));
     
     // Use dummy data if no real package data is available
     if (packageData.length === 0) {
@@ -570,7 +573,7 @@ export default function DashboardPage() {
           name: "Total Revenue",
           value: revenueLoading
             ? "Loading..."
-            : `$${totalRevenue.toLocaleString()}`,
+            : `$${(totalRevenue + (bookingStats?.pendingRevenue || 0)).toLocaleString()}`,
           prevValue: "$11,300",
           change: statsDelta.revenue,
           changeType: statsDelta.revenueDelta as "increase" | "decrease",

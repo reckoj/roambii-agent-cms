@@ -70,6 +70,11 @@ export default function BookingFormPage() {
   // Populate form with booking data if editing
   useEffect(() => {
     if (isEdit && selectedBooking) {
+      const validStatuses = ["pending", "confirmed", "cancelled", "completed"];
+      const status = validStatuses.includes(selectedBooking.status)
+        ? (selectedBooking.status as "pending" | "confirmed" | "cancelled" | "completed")
+        : "pending";
+      
       setFormData({
         clientName: selectedBooking.clientName,
         clientEmail: selectedBooking.clientEmail,
@@ -85,9 +90,7 @@ export default function BookingFormPage() {
         price: selectedBooking.price.toString(),
         travelers: selectedBooking.travelers.toString(),
         notes: selectedBooking.notes || "",
-        status: ['pending', 'confirmed', 'cancelled', 'completed'].includes(selectedBooking.status) 
-          ? (selectedBooking.status as "pending" | "confirmed" | "cancelled" | "completed") 
-          : "pending",
+        status: status,
       });
     }
   }, [isEdit, selectedBooking]);
@@ -176,7 +179,7 @@ export default function BookingFormPage() {
         price,
         totalPaid: 0,
         balance: price,
-        status: formData.status,
+        status: formData.status as "pending" | "confirmed" | "cancelled" | "completed",
         travelers,
         notes: formData.notes || undefined,
         paymentStatus: "unpaid",

@@ -427,6 +427,7 @@ export const getBookingStats = async (
     let cancelledBookings = 0;
     let totalRevenue = 0;
     let pendingRevenue = 0;
+    let cancelledRevenue = 0;
     let revenueThisMonth = 0;
     let bookingsThisMonth = 0;
 
@@ -466,7 +467,8 @@ export const getBookingStats = async (
         console.log(`Booking ${doc.id} is pending. Added ${price} to pending revenue. Running total: ${pendingRevenue}`);
       } else if (status === "cancelled" || status === "canceled") {
         cancelledBookings++;
-        console.log(`Booking ${doc.id} is cancelled. Not adding to revenue.`);
+        cancelledRevenue += price;
+        console.log(`Booking ${doc.id} is cancelled. Added ${price} to cancelled revenue. Running total: ${cancelledRevenue}`);
       } else {
         // Default to pending for unknown statuses
         pendingBookings++;
@@ -508,7 +510,7 @@ export const getBookingStats = async (
       }
     });
 
-    console.log(`Stats calculation complete. Total: ${totalBookings}, Revenue: ${totalRevenue}, Pending Revenue: ${pendingRevenue}`);
+    console.log(`Stats calculation complete. Total: ${totalBookings}, Revenue: ${totalRevenue}, Pending Revenue: ${pendingRevenue}, Cancelled Revenue: ${cancelledRevenue}`);
     console.log(`Status counts - Confirmed: ${confirmedBookings}, Pending: ${pendingBookings}, Cancelled: ${cancelledBookings}`);
     
     return {
@@ -518,6 +520,7 @@ export const getBookingStats = async (
       cancelled: cancelledBookings,
       revenue: totalRevenue,
       pendingRevenue: pendingRevenue,
+      cancelledRevenue: cancelledRevenue,
       revenueMonth: revenueThisMonth,
       bookingsMonth: bookingsThisMonth,
     };
@@ -531,6 +534,7 @@ export const getBookingStats = async (
       cancelled: 0,
       revenue: 0,
       pendingRevenue: 0,
+      cancelledRevenue: 0,
       revenueMonth: 0,
       bookingsMonth: 0,
     };
