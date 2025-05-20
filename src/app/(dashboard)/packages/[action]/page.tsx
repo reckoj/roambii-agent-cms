@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAppSelector } from "@/lib/redux/hooks";
-import { createPackage, updatePackage, getPackageById } from "@/lib/package-service";
+import {
+  createPackage,
+  updatePackage,
+  getPackageById,
+} from "@/lib/package-service";
 import { Package } from "@/types/package";
 import { ArrowLeft, Upload, X } from "lucide-react";
 import Link from "next/link";
@@ -76,8 +80,8 @@ export default function PackageFormPage() {
   const router = useRouter();
   const params = useParams();
   const { agent } = useAppSelector((state) => state.auth);
-  const isEdit = params.action === "edit";
-  const packageId = params.id as string;
+  const isEdit = params?.action === "edit";
+  const packageId = params?.id as string;
 
   const [formData, setFormData] = useState<PackageFormData>({
     name: "",
@@ -263,6 +267,16 @@ export default function PackageFormPage() {
     }
   };
 
+  // Check if flight info is populated
+  const hasFlightInfo = () => {
+    return flightInfo && (
+      flightInfo.departingFrom || 
+      flightInfo.arrivingTo || 
+      flightInfo.returningFrom || 
+      flightInfo.returningTo
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agent) return;
@@ -276,16 +290,19 @@ export default function PackageFormPage() {
         ...formData,
         id: isEdit ? packageId : crypto.randomUUID(),
         price: formData.price === "" ? 0 : formData.price,
-        bedrooms: formData.bedrooms === "" ? 0 : formData.bedrooms,
         bathrooms: formData.bathrooms === "" ? 0 : formData.bathrooms,
+        bedrooms: formData.bedrooms === "" ? 0 : formData.bedrooms,
         guestAmount: formData.guestAmount === "" ? 0 : formData.guestAmount,
         rating: formData.rating === "" ? 0 : formData.rating,
-        agent: {
-          id: agent.id,
-          name: agent.name,
-          avatar: agent.avatar,
-        },
-        flightInfo: flightInfo,
+        agent: agent
+          ? {
+              id: agent.id,
+              name: agent.name,
+              avatar: agent.avatar,
+            }
+          : { id: "", name: "" },
+        flightInfo: hasFlightInfo() ? flightInfo : undefined,
+        salesCount: isEdit && formData.id ? (await getPackageById(formData.id))?.salesCount || 0 : 0,
       };
 
       console.log('Submitting package data:', packageData);
