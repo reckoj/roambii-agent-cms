@@ -30,7 +30,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     // Ensure we're on the client side
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       setError("Authentication can only be performed on the client side");
       setIsLoading(false);
       return;

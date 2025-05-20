@@ -16,6 +16,7 @@ export interface Package {
   checkOutDate: Date;
   checkInTime: Date;
   checkOutTime: Date;
+  salesCount: number;
   agent: {
     id: string;
     name: string;

@@ -3,6 +3,7 @@ import authReducer from "./slices/authSlice";
 import packageReducer from "./slices/packageSlice";
 import bookingReducer from "./slices/bookingSlice";
 import itineraryReducer from "./slices/itinerarySlice";
+import dashboardReducer from "./slices/dashboardSlice";
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     packages: packageReducer,
     bookings: bookingReducer,
     itineraries: itineraryReducer,
+    dashboard: dashboardReducer,
   },
 });
 

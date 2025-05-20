@@ -119,6 +119,7 @@ export const createPackage = async (
       beds: Number(packageData.bedrooms) || 0,
       sleeps: Number(packageData.bedrooms) || 0,
       guest_amount: Number(packageData.guestAmount) || 1,
+      sales_count: 0,
       check_in_date: safeCreateDate(packageData.checkInDate) || now,
       check_out_date: safeCreateDate(packageData.checkOutDate) || now,
       check_in_time: safeCreateDate(packageData.checkInTime) || now,
@@ -166,6 +167,7 @@ export const createPackage = async (
       bathrooms: newPackage.baths,
       bedrooms: newPackage.beds,
       guestAmount: newPackage.guest_amount,
+      salesCount: newPackage.sales_count,
       checkInDate: newPackage.check_in_date,
       checkOutDate: newPackage.check_out_date,
       checkInTime: newPackage.check_in_time,
@@ -251,13 +253,31 @@ export const getPackageById = async (id: string): Promise<Package | null> => {
         bathrooms: data.baths,
         bedrooms: data.beds,
         guestAmount: data.guest_amount,
+        salesCount: data.sales_count || 0,
         checkInDate: safeToDate(data.check_in_date),
         checkOutDate: safeToDate(data.check_out_date),
         checkInTime: safeToDate(data.check_in_time),
         checkOutTime: safeToDate(data.check_out_time),
         agent: data.agent,
-        createdAt: safeToDate(data.createdAt)?.toISOString(),
-        updatedAt: safeToDate(data.updatedAt)?.toISOString(),
+        flightInfo: {
+          id: packageDoc.id,
+          departingFrom: data.flight_info?.departing_from,
+          arrivingTo: data.flight_info?.arriving_to,
+          returningFrom: data.flight_info?.returning_from,
+          returningTo: data.flight_info?.returning_to,
+          departingTime: safeToDate(data.flight_info?.departing_time),
+          arrivingToTime: safeToDate(data.flight_info?.arriving_to_time),
+          returningFromTime: safeToDate(data.flight_info?.returning_from_time),
+          returningToTime: safeToDate(data.flight_info?.returning_to_time),
+          departureDate: safeToDate(data.flight_info?.departure_date),
+          returnDate: safeToDate(data.flight_info?.return_date),
+        },
+        createdAt: data.createdAt
+          ? safeToDate(data.createdAt)?.toISOString()
+          : undefined,
+        updatedAt: data.updatedAt
+          ? safeToDate(data.updatedAt)?.toISOString()
+          : undefined,
       } as Package;
     }
     return null;
@@ -379,6 +399,7 @@ export const getAgentPackages = async (
           bathrooms: data.baths,
           bedrooms: data.beds,
           guestAmount: data.guest_amount,
+          salesCount: data.sales_count || 0,
           checkInDate: safeToDate(data.check_in_date),
           checkOutDate: safeToDate(data.check_out_date),
           checkInTime: safeToDate(data.check_in_time),

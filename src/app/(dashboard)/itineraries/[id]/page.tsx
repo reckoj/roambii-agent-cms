@@ -60,7 +60,7 @@ export default function ItineraryDetailPage() {
     useState<Partial<Activity> | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const itineraryId = params.id as string;
+  const itineraryId = params?.id as string;
 
   useEffect(() => {
     if (itineraryId) {

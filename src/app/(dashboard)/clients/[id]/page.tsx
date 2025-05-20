@@ -7,7 +7,6 @@ import {
   ArrowLeftIcon,
   PencilIcon,
   CalendarIcon,
-  ChatBubbleLeftIcon,
   CheckCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";

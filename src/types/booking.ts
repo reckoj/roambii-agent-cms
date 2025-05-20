@@ -7,18 +7,18 @@ export interface Booking {
   packageId: string;
   packageName: string;
   agentId: string;
-  startDate: Date | string;
-  endDate: Date | string;
+  startDate: Date;
+  endDate: Date;
   price: number;
   totalPaid: number;
   balance: number;
-  status: "pending" | "confirmed" | "cancelled" | "completed";
+  status: string;
   travelers: number;
   notes?: string;
   paymentMethod?: string;
-  paymentStatus: "unpaid" | "partially_paid" | "paid";
-  createdAt?: string;
-  updatedAt?: string;
+  paymentStatus: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface BookingFilter {

@@ -15,7 +15,7 @@ import {
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { RootState } from "@/lib/redux/store";
-import { fetchBookingStatsAsync } from "@/lib/redux/slices/bookingSlice";
+import { fetchBookingStatsAsync, fetchBookingsAsync } from "@/lib/redux/slices/bookingSlice";
 import Link from "next/link";
 import {
   Chart as ChartJS,
@@ -36,6 +36,10 @@ import PackagePerformance from "@/components/dashboard/PackagePerformance";
 import UpcomingBookings from "@/components/dashboard/UpcomingBookings";
 import { getAgentClientsFromBookings } from "@/lib/client-service";
 import { getAgentPackages } from "@/lib/package-service";
+import { getAgentRevenueStats } from "@/lib/revenue-service";
+import { setPackages } from "@/lib/redux/slices/packageSlice";
+import { AnyAction } from "redux";
+import { Package } from "@/types/package";
 
 // Register ChartJS components
 ChartJS.register(
@@ -91,6 +95,49 @@ type StatsCard = {
   color: string;
 };
 
+// Add a helper function to the top of the component
+const serializeDates = (obj: any, seen = new WeakMap<object, any>()): any => {
+  // Handle null or non-objects
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  // Check for circular references
+  if (seen.has(obj)) return seen.get(obj);
+  
+  // Handle Date objects directly
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+  
+  // Create a shallow copy that Immer can handle
+  let result: any;
+  
+  // For arrays, map over each element
+  if (Array.isArray(obj)) {
+    result = [];
+    seen.set(obj, result);
+    for (let i = 0; i < obj.length; i++) {
+      result[i] = serializeDates(obj[i], seen);
+    }
+    return result;
+  }
+  
+  // For objects, create a new object and process each property
+  result = {};
+  seen.set(obj, result);
+  
+  // Only include serializable properties
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (typeof value !== 'function' && key !== '__proto__') {
+        result[key] = serializeDates(value, seen);
+      }
+    }
+  }
+  
+  return result;
+};
+
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
   const auth = useAppSelector((state: RootState) => state.auth);
@@ -108,6 +155,8 @@ export default function DashboardPage() {
   const [revenueLoading, setRevenueLoading] = useState<boolean>(true);
   const [packageCount, setPackageCount] = useState<number>(0);
   const [packagesLoading, setPackagesLoading] = useState<boolean>(true);
+  const [revenueStats, setRevenueStats] = useState<any>(null);
+  const [loadingRevenue, setLoadingRevenue] = useState<boolean>(true);
 
   // Sample data for new components
   const [packagePerformanceData, setPackagePerformanceData] = useState<any[]>(
@@ -120,70 +169,278 @@ export default function DashboardPage() {
   const [bookingStatusData, setBookingStatusData] = useState<any>(null);
   const [monthlyBookingsData, setMonthlyBookingsData] = useState<any>(null);
 
+  // Add a state for package booking data
+  const [packageBookingData, setPackageBookingData] = useState<Record<string, { count: number, revenue: number, lastMonth: { count: number, revenue: number } }>>({});
+
+  // Define helper functions before the main effect
+  const loadAgentPackages = async () => {
+    if (!agent) return;
+    
+    try {
+      setPackagesLoading(true);
+      const result = await getAgentPackages(agent.id);
+      console.log(`Loaded ${result.packages.length} packages for agent:`, 
+        result.packages.map(p => p.name));
+      
+      // Serialize dates in packages to fix Redux errors
+      const serializedPackages = result.packages.map(pkg => {
+        // Create a simplified package object with only needed properties
+        const simplifiedPackage = {
+          id: pkg.id,
+          name: pkg.name,
+          description: pkg.description || '',
+          price: pkg.price || 0,
+          type: pkg.type || '',
+          image: pkg.image || null,
+          rating: pkg.rating || 0,
+          allinclusive: pkg.allinclusive || false,
+          roomType: pkg.roomType || '',
+          amenities: Array.isArray(pkg.amenities) ? [...pkg.amenities] : [],
+          isFeatured: pkg.isFeatured || false,
+          bathrooms: pkg.bathrooms || 0,
+          bedrooms: pkg.bedrooms || 0,
+          guestAmount: pkg.guestAmount || 1,
+          salesCount: pkg.salesCount || 0,
+          checkInDate: new Date().toISOString(),
+          checkOutDate: new Date().toISOString(),
+          checkInTime: new Date().toISOString(),
+          checkOutTime: new Date().toISOString(),
+          agent: pkg.agent ? {
+            id: pkg.agent.id,
+            name: pkg.agent.name,
+            avatar: pkg.agent.avatar || null
+          } : null,
+          createdAt: pkg.createdAt ? new Date(pkg.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: pkg.updatedAt ? new Date(pkg.updatedAt).toISOString() : new Date().toISOString(),
+        };
+        
+        return simplifiedPackage;
+      });
+      
+      console.log("Serialized packages for Redux:", serializedPackages.length);
+      
+      // Store these packages in Redux
+      dispatch(setPackages(serializedPackages as unknown as Package[]));
+
+      // Set local state
+      setPackageCount(result.packages.length);
+      setPackagesLoading(false);
+    } catch (error) {
+      console.error("Error loading packages:", error);
+      setPackagesLoading(false);
+    }
+  };
+
+  // Fetch revenue stats
+  const fetchRevenueStats = async () => {
+    if (!agent) return;
+    
+    try {
+      setLoadingRevenue(true);
+      const stats = await getAgentRevenueStats(agent.id);
+      setRevenueStats(stats);
+    } catch (error) {
+      console.error("Error fetching revenue stats:", error);
+    } finally {
+      setLoadingRevenue(false);
+    }
+  };
+
+  // Fetch client count
+  const fetchClientCount = async () => {
+    if (!agent) return;
+    
+    try {
+      setClientsLoading(true);
+      const clients = await getAgentClientsFromBookings(agent.id);
+      setClientCount(clients.length);
+    } catch (error) {
+      console.error("Error fetching client count:", error);
+      setClientCount(0);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
   // Fetch booking stats and real-time data when component mounts
   useEffect(() => {
-    if (agent) {
-      // Fetch booking stats (including revenue data)
-      dispatch(fetchBookingStatsAsync(agent.id))
-        .then((action) => {
-          if (fetchBookingStatsAsync.fulfilled.match(action)) {
-            // Extract revenue data from the response
-            const stats = action.payload;
-            if (stats) {
-              setTotalRevenue(stats.revenue);
+    const fetchDashboardData = () => {
+      if (agent) {
+        console.log("Fetching dashboard data for agent:", agent.id);
+        
+        // Fetch booking stats
+        dispatch(fetchBookingStatsAsync(agent.id))
+          .then((action) => {
+            if (fetchBookingStatsAsync.fulfilled.match(action)) {
+              const stats = action.payload;
+              if (stats) {
+                setTotalRevenue(stats.revenue);
+                console.log("Booking stats loaded:", stats);
+              }
+              setRevenueLoading(false);
             }
+          })
+          .catch((error) => {
+            console.error("Error fetching booking stats:", error);
             setRevenueLoading(false);
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching booking stats:", error);
-          setRevenueLoading(false);
+          });
+
+        // Fetch bookings for package performance calculation
+        dispatch(fetchBookingsAsync({ 
+          agentId: agent.id, 
+          reset: true,
+        })).then(result => {
+          console.log("Bookings loaded for performance calculation");
         });
+        
+        // Fetch packages directly
+        loadAgentPackages();
+        fetchRevenueStats();
+        fetchClientCount();
+      }
+    };
+    
+    fetchDashboardData();
+    
+    // Set up visibility listener to refresh data when tab becomes active
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Tab became visible, refreshing dashboard data");
+        fetchDashboardData();
+      }
+    };
 
-      // Fetch real client count
-      const fetchClientCount = async () => {
-        try {
-          setClientsLoading(true);
-          const clients = await getAgentClientsFromBookings(agent.id);
-          setClientCount(clients.length);
-        } catch (error) {
-          console.error("Error fetching client count:", error);
-          setClientCount(0);
-        } finally {
-          setClientsLoading(false);
-        }
-      };
-
-      // Fetch package count
-      const fetchPackageCount = async () => {
-        try {
-          setPackagesLoading(true);
-          const packageData = await getAgentPackages(agent.id);
-          setPackageCount(packageData.packages.length);
-        } catch (error) {
-          console.error("Error fetching package count:", error);
-          setPackageCount(0);
-        } finally {
-          setPackagesLoading(false);
-        }
-      };
-
-      fetchClientCount();
-      fetchPackageCount();
-    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [agent, dispatch]);
+
+  // Generate real package performance data when packages and bookings are available
+  useEffect(() => {
+    if (!packages?.length) {
+      console.log(`Missing data for package performance: Packages: ${packages?.length}`);
+      return;
+    }
+    
+    console.log("Generating package performance data from", packages.length, "packages");
+    
+    // Create a map to organize package performance data
+    interface PackageStat {
+      id: string;
+      name: string;
+      bookingCount: number;
+      revenue: number;
+      image: string | null;
+    }
+    
+    const packageStats: Record<string, PackageStat> = {};
+    
+    // Initialize with all packages, using the salesCount field
+    packages.forEach(pkg => {
+      console.log(`Package ${pkg.name} has salesCount: ${pkg.salesCount || 0}`);
+      packageStats[pkg.id] = {
+        id: pkg.id,
+        name: pkg.name,
+        bookingCount: pkg.salesCount || 0, // Use the salesCount field from the package
+        revenue: (pkg.salesCount || 0) * pkg.price, // Calculate revenue based on sales count
+        image: pkg.image || null,
+      };
+    });
+    
+    // If we have bookings available, we can use them to refine revenue calculations
+    // (in case the price changed after some sales)
+    if (bookings?.length) {
+      console.log("Using", bookings.length, "bookings to refine revenue calculations");
+      
+      // Update revenue with booking data while preserving the salesCount
+      bookings.forEach(booking => {
+        let packageIdToUse = booking.packageId;
+        
+        // Check if package exists in our list
+        if (!packageStats[packageIdToUse]) {
+          // Try to find the package by name matching
+          const packageName = booking.packageName;
+          if (packageName) {
+            const matchingPackage = packages.find(p => 
+              p.name.toLowerCase() === packageName.toLowerCase()
+            );
+            if (matchingPackage) {
+              console.log("Found package by name instead of ID:", matchingPackage.name);
+              packageIdToUse = matchingPackage.id;
+            } else {
+              console.log("Package not found by ID or name:", packageIdToUse, packageName);
+              return;
+            }
+          } else {
+            console.log("Booking has no package ID or name:", booking.id);
+            return;
+          }
+        }
+        
+        // Update revenue based on actual booking prices
+        packageStats[packageIdToUse].revenue += booking.price || 0;
+      });
+    }
+    
+    // Convert to array and sort by revenue
+    const sortedPackages = Object.values(packageStats)
+      .filter(pkg => pkg.name && pkg.id) // Make sure we have valid packages
+      .sort((a, b) => b.revenue - a.revenue);
+    
+    console.log("All sorted packages:", sortedPackages.map(p => `${p.name} (${p.bookingCount} bookings, $${p.revenue})`));
+    
+    // Take top packages or all if we have fewer
+    const topPackages = sortedPackages.slice(0, Math.min(5, sortedPackages.length));
+    
+    // Format for display
+    const packageData = topPackages.map(pkg => ({
+      id: pkg.id,
+      name: pkg.name,
+      bookings: pkg.bookingCount,
+      revenue: pkg.revenue,
+      growth: Math.floor(Math.random() * 30) - 10, // Placeholder for growth calculation
+      image: pkg.image,
+    }));
+    
+    console.log("Top packages:", packageData);
+    
+    // Use dummy data if no real package data is available
+    if (packageData.length === 0) {
+      setPackagePerformanceData([
+        {
+          id: "1",
+          name: "Luxury Beach Resort",
+          bookings: 12,
+          revenue: 24000,
+          growth: 18,
+          image: "https://images.unsplash.com/photo-1540541338287-41700207dee6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8YmVhY2glMjByZXNvcnR8ZW58MHx8MHx8&w=100&q=80",
+        },
+        // Add more dummy data if needed
+      ]);
+    } else {
+      setPackagePerformanceData(packageData);
+    }
+    
+  }, [packages, bookings]);
 
   // Generate data for additional components and charts
   useEffect(() => {
-    // Revenue data - 6 month trend
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+    // Get real months for chart labels - last 6 months
+    const lastMonths = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      return d.toLocaleString('default', { month: 'short' });
+    }).reverse();
 
+    // Revenue chart - use real data from bookingStats
     setRevenueData({
-      labels: months,
+      labels: lastMonths,
       datasets: [
         {
           label: "Revenue",
-          data: [3200, 4100, 2900, 7500, 5600, bookingStats?.revenue || 12650],
+          data: [0, 0, 0, 0, 0, totalRevenue || 0],
           fill: true,
           backgroundColor: colors.primary.light,
           borderColor: colors.primary.main,
@@ -191,7 +448,7 @@ export default function DashboardPage() {
         },
         {
           label: "Bookings",
-          data: [10, 14, 8, 22, 18, bookingStats?.total || 34],
+          data: [0, 0, 0, 0, 0, bookingStats?.total || 0],
           fill: false,
           borderColor: colors.secondary.main,
           borderDash: [5, 5],
@@ -200,15 +457,15 @@ export default function DashboardPage() {
       ],
     });
 
-    // Booking status distribution
+    // Booking status distribution - use real data
     setBookingStatusData({
       labels: ["Confirmed", "Pending", "Cancelled"],
       datasets: [
         {
           data: [
-            bookingStats?.confirmed || 22,
-            bookingStats?.pending || 8,
-            bookingStats?.cancelled || 4,
+            bookingStats?.confirmed || 0,
+            bookingStats?.pending || 0,
+            bookingStats?.cancelled || 0,
           ],
           backgroundColor: [
             colors.success.main,
@@ -220,116 +477,68 @@ export default function DashboardPage() {
       ],
     });
 
-    // Monthly bookings data
+    // Monthly bookings data - use real data if available
     setMonthlyBookingsData({
-      labels: months,
+      labels: lastMonths,
       datasets: [
         {
           label: "Bookings",
-          data: [8, 12, 6, 18, 14, bookingStats?.total || 34],
+          data: [0, 0, 0, 0, 0, bookingStats?.bookingsMonth || 0],
           backgroundColor: colors.secondary.main,
           borderRadius: 4,
         },
       ],
     });
 
-    // Package performance data from real packages
-    if (packages && packages.length > 0) {
-      // Sort packages by some criteria (using price as a placeholder for revenue)
-      const sortedPackages = [...packages].sort((a, b) => b.price - a.price);
+    // Get real upcoming bookings if available
+    if (bookings && bookings.length > 0) {
+      console.log("Creating upcoming bookings from", bookings.length, "bookings");
+      
+      // Filter to only include future bookings
+      const futureBookings = bookings
+        .filter((booking) => {
+          const startDate = new Date(booking.startDate);
+          return startDate > new Date();
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.startDate);
+          const dateB = new Date(b.startDate);
+          return dateA.getTime() - dateB.getTime();
+        })
+        .slice(0, 3); // Get the next 3 bookings
 
-      // Take top 5 packages
-      const topPackages = sortedPackages.slice(0, 5);
-
-      // Transform packages into package performance data
-      const packageData = topPackages.map((pkg) => ({
-        id: pkg.id,
-        name: pkg.name,
-        bookings: Math.floor(Math.random() * 15) + 1, // Placeholder for actual booking counts
-        revenue: pkg.price * (Math.floor(Math.random() * 15) + 1), // Placeholder for actual revenue
-        growth: Math.floor(Math.random() * 30) - 10, // Placeholder for growth (-10 to +20%)
-        image: pkg.image || undefined,
+      const upcomingData = futureBookings.map((booking) => ({
+        id: booking.id,
+        clientName: booking.clientName,
+        packageName: booking.packageName,
+        startDate: new Date(booking.startDate),
+        endDate: new Date(booking.endDate),
+        status: booking.status,
       }));
 
-      setPackagePerformanceData(packageData);
-    } else {
-      // Fallback to sample data if no packages available
-      setPackagePerformanceData([
-        {
-          id: "1",
-          name: "Luxury Beach Resort",
-          bookings: 12,
-          revenue: 24000,
-          growth: 18,
-          image:
-            "https://images.unsplash.com/photo-1540541338287-41700207dee6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8YmVhY2glMjByZXNvcnR8ZW58MHx8MHx8&w=100&q=80",
-        },
-        {
-          id: "2",
-          name: "European City Tour",
-          bookings: 8,
-          revenue: 14400,
-          growth: 5,
-          image:
-            "https://images.unsplash.com/photo-1491557345352-5929e343eb89?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8ZXVyb3BlYW4lMjBjaXR5fGVufDB8fDB8fA%3D%3D&w=100&q=80",
-        },
-        {
-          id: "3",
-          name: "Mountain Adventure",
-          bookings: 6,
-          revenue: 9600,
-          growth: -3,
-          image:
-            "https://images.unsplash.com/photo-1464278533981-50e57c2b7d1d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8bW91bnRhaW4lMjBhZHZlbnR1cmV8ZW58MHx8MHx8&w=100&q=80",
-        },
-        {
-          id: "4",
-          name: "Island Paradise",
-          bookings: 5,
-          revenue: 12500,
-          growth: 12,
-          image:
-            "https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8aXNsYW5kJTIwcGFyYWRpc2V8ZW58MHx8MHx8&w=100&q=80",
-        },
-        {
-          id: "5",
-          name: "Safari Experience",
-          bookings: 4,
-          revenue: 8800,
-          growth: 8,
-          image:
-            "https://images.unsplash.com/photo-1523805009345-7448845a9e53?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8c2FmYXJpfGVufDB8fDB8fA%3D%3D&w=100&q=80",
-        },
-      ]);
+      setUpcomingBookingsData(upcomingData);
+      console.log("Upcoming bookings data created:", upcomingData.length, "items");
     }
 
-    // Upcoming bookings sample data
-    setUpcomingBookingsData([
-      {
-        id: "bk-1",
-        clientName: "Emma Johnson",
-        packageName: "Luxury Beach Resort Package - 7 nights",
-        startDate: new Date(new Date().setDate(new Date().getDate() + 5)),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 12)),
-        status: "confirmed",
-      },
-      {
-        id: "bk-2",
-        clientName: "Michael Chen",
-        packageName: "European City Tour - Paris & Rome",
-        startDate: new Date(new Date().setDate(new Date().getDate() + 12)),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 20)),
-        status: "pending",
-      },
-      {
-        id: "bk-3",
-        clientName: "Sophia Rodriguez",
-        packageName: "Mountain Adventure - Swiss Alps",
-        startDate: new Date(new Date().setDate(new Date().getDate() + 18)),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 25)),
-        status: "confirmed",
-      },
-    ]);
+    // Real recent bookings from Redux state
+    if (bookings && bookings.length > 0) {
+      console.log("Creating recent bookings list");
+      
+      // Get the 5 most recent bookings
+      const recentBookingsData = bookings
+        .slice(0, 5)
+        .map((booking) => ({
+          id: booking.id,
+          client: booking.clientName,
+          package: booking.packageName,
+          date: new Date(booking.createdAt instanceof Date ? booking.createdAt : new Date()).toISOString().split('T')[0],
+          amount: `$${booking.price.toLocaleString()}`,
+          status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1), // Capitalize first letter
+        }));
+
+      setRecentBookings(recentBookingsData);
+      console.log("Recent bookings list created with", recentBookingsData.length, "bookings");
+    }
 
     // Simulate fetching data
     setTimeout(() => {
@@ -379,7 +588,7 @@ export default function DashboardPage() {
         },
         {
           name: "Bookings",
-          value: bookingStats ? bookingStats.total.toString() : "34",
+          value: bookingStats ? bookingStats.total.toString() : "0",
           prevValue: "35",
           change: statsDelta.bookings,
           changeType: statsDelta.bookingsDelta as "increase" | "decrease",
@@ -397,54 +606,12 @@ export default function DashboardPage() {
         },
       ]);
 
-      setRecentBookings([
-        {
-          id: "BOOK-123",
-          client: "Jane Cooper",
-          package: "Luxury Beach Resort Package",
-          date: "2023-05-10",
-          amount: "$2,400",
-          status: "Confirmed",
-        },
-        {
-          id: "BOOK-122",
-          client: "John Smith",
-          package: "European Adventure Tour",
-          date: "2023-05-08",
-          amount: "$3,200",
-          status: "Confirmed",
-        },
-        {
-          id: "BOOK-121",
-          client: "Robert Johnson",
-          package: "Mountain Retreat Package",
-          date: "2023-05-06",
-          amount: "$1,800",
-          status: "Pending",
-        },
-        {
-          id: "BOOK-120",
-          client: "Emily Davis",
-          package: "City Explorer Package",
-          date: "2023-05-05",
-          amount: "$1,250",
-          status: "Confirmed",
-        },
-        {
-          id: "BOOK-119",
-          client: "Michael Brown",
-          package: "Island Paradise Getaway",
-          date: "2023-05-04",
-          amount: "$2,800",
-          status: "Cancelled",
-        },
-      ]);
-
       setLoading(false);
     }, 1000);
   }, [
     bookingStats,
     packages,
+    bookings,
     clientCount,
     clientsLoading,
     totalRevenue,
@@ -452,6 +619,50 @@ export default function DashboardPage() {
     packageCount,
     packagesLoading,
   ]);
+
+  // Directly load packages for display - this is a backup in case Redux isn't working
+  useEffect(() => {
+    const loadPackagesDirectly = async () => {
+      if (!agent) return;
+      
+      try {
+        console.log("Loading packages directly from API");
+        setPackagesLoading(true);
+        
+        // Load packages directly
+        const result = await getAgentPackages(agent.id);
+        console.log(`API returned ${result.packages.length} packages`, result.packages);
+        
+        // Create package performance data directly
+        if (result.packages.length > 0) {
+          const directPackageData = result.packages
+            .slice(0, 5)
+            .map(pkg => ({
+              id: pkg.id,
+              name: pkg.name,
+              bookings: 0,
+              revenue: pkg.price || 0,
+              growth: 0,
+              image: pkg.image || '',
+            }));
+            
+          console.log("Setting package data directly from API:", directPackageData);
+          setPackagePerformanceData(directPackageData);
+          setPackageCount(result.packages.length);
+        } else {
+          console.log("No packages found via direct API call");
+        }
+      } catch (error) {
+        console.error("Error loading packages directly:", error);
+      } finally {
+        setPackagesLoading(false);
+      }
+    };
+    
+    if (!packagePerformanceData.length) {
+      loadPackagesDirectly();
+    }
+  }, [agent, packagePerformanceData.length]);
 
   const lineChartOptions = {
     responsive: true,
@@ -741,16 +952,27 @@ export default function DashboardPage() {
       {/* Revenue Insights & Package Performance */}
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
         <RevenueInsights
-          totalRevenue={bookingStats?.revenue || 12650}
-          avgBookingValue={avgBookingValue}
-          topPackageRevenue={topPackageRevenue}
-          revenueGrowth={revenueGrowth}
-          loading={loading || loadingStats}
+          totalRevenue={totalRevenue}
+          avgBookingValue={
+            bookingStats && bookingStats.total > 0
+              ? bookingStats.revenue / bookingStats.total
+              : 0
+          }
+          topPackageRevenue={
+            revenueStats?.topPackageRevenue?.revenue || 
+            (packagePerformanceData.length > 0 ? packagePerformanceData[0].revenue : 0)
+          }
+          revenueGrowth={
+            revenueStats?.monthlyRevenue?.percentChange || 
+            (bookingStats?.revenueMonth && bookingStats.revenueMonth > 0 ? 15 : 0)
+          }
+          loading={loading || loadingStats || loadingRevenue}
         />
 
         <PackagePerformance
           packages={packagePerformanceData}
-          loading={loading}
+          loading={loading || packagesLoading}
+          timeFrame="All Time"
         />
       </div>
 

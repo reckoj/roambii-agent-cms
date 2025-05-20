@@ -15,7 +15,12 @@ import {
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 import { Client, ClientFilter } from "@/types/client";
-import { getAgentClients, getAgentClientsFromBookings, formatDate, updateClientNotes } from "@/lib/client-service";
+import {
+  getAgentClients,
+  getAgentClientsFromBookings,
+  formatDate,
+  updateClientNotes,
+} from "@/lib/client-service";
 import { useAppSelector } from "@/lib/redux/hooks";
 import Modal from "@/components/shared/Modal";
 import { getBookingStats } from "@/lib/booking-service";
@@ -38,7 +43,7 @@ const displayDate = (date?: Date | any): string => {
 export default function ClientsPage() {
   const router = useRouter();
   const { agent } = useAppSelector((state) => state.auth);
-  
+
   // State
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +54,9 @@ export default function ClientsPage() {
   const [clientNotes, setClientNotes] = useState("");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notesLoading, setNotesLoading] = useState(false);
-  const [sortBy, setSortBy] = useState<"lastBookingDate" | "totalSpent" | "totalBookings">("lastBookingDate");
+  const [sortBy, setSortBy] = useState<
+    "lastBookingDate" | "totalSpent" | "totalBookings"
+  >("lastBookingDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [dashboardStats, setDashboardStats] = useState({
     packageCount: 0,
@@ -57,106 +64,135 @@ export default function ClientsPage() {
     totalRevenue: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
-  
+
   // Load dashboard stats
   const loadDashboardStats = async () => {
     if (!agent) return;
-    
+
     setStatsLoading(true);
-    
+
     try {
       // Get booking stats (revenue)
       const bookingStats = await getBookingStats(agent.id);
-      
+
       // Get package count
       const packageData = await getAgentPackages(agent.id);
-      
-      // Client count will be updated after clients are loaded
-      setDashboardStats({
+
+      // Keep existing client count when updating stats
+      setDashboardStats(prev => ({
         packageCount: packageData.packages.length,
-        clientCount: 0, // Will be updated when clients are loaded
+        clientCount: prev.clientCount, // Preserve the existing client count
         totalRevenue: bookingStats.revenue,
-      });
+      }));
+      
+      return {
+        packageCount: packageData.packages.length,
+        totalRevenue: bookingStats.revenue
+      };
     } catch (error) {
       console.error("Error loading dashboard stats:", error);
+      return null;
     } finally {
       setStatsLoading(false);
     }
   };
-  
+
   // Load clients
   const loadClients = async () => {
     if (!agent) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      console.log("Loading clients for agent:", JSON.stringify({
-        id: agent.id,
-        type: typeof agent.id,
-        name: agent.name,
-        email: agent.email,
-        fullAgent: agent
-      }, null, 2));
-      
+      console.log(
+        "Loading clients for agent:",
+        JSON.stringify(
+          {
+            id: agent.id,
+            type: typeof agent.id,
+            name: agent.name,
+            email: agent.email,
+            fullAgent: agent,
+          },
+          null,
+          2
+        )
+      );
+
       let clientsData: Client[] = [];
       let errorMessage = "";
-      
+
       // First try to get clients from the dedicated clients collection
       try {
         clientsData = await getAgentClients(agent.id, {
           sortBy,
           sortDirection,
         });
-        console.log(`Found ${clientsData.length} clients in dedicated collection`);
+        console.log(
+          `Found ${clientsData.length} clients in dedicated collection`
+        );
       } catch (error) {
         console.error("Error fetching from clients collection:", error);
         errorMessage += "Failed to query clients collection. ";
       }
-      
+
       // If no clients found, try the embedded approach
       if (clientsData.length === 0) {
-        console.log("No clients found in clients collection, trying embedded approach");
-        
+        console.log(
+          "No clients found in clients collection, trying embedded approach"
+        );
+
         try {
           // Force agent ID to string if somehow not a string
-          const agentIdToUse = typeof agent.id === 'string' ? agent.id : String(agent.id);
+          const agentIdToUse =
+            typeof agent.id === "string" ? agent.id : String(agent.id);
           clientsData = await getAgentClientsFromBookings(agentIdToUse, {
             sortBy,
             sortDirection,
           });
-          console.log(`Found ${clientsData.length} clients using embedded approach`);
+          console.log(
+            `Found ${clientsData.length} clients using embedded approach`
+          );
         } catch (error) {
           console.error("Error with embedded approach:", error);
           errorMessage += "Failed to query embedded client relationships. ";
         }
       }
-      
+
       // Security check: filter to only include clients where this agent is the agent
       clientsData = clientsData.filter((client) => client.agentId === agent.id);
-      console.log(`After security filter: ${clientsData.length} clients remain`);
-      
+      console.log(
+        `After security filter: ${clientsData.length} clients remain`
+      );
+
       setClients(clientsData);
-      
-      // Update client count in dashboard stats
-      setDashboardStats(prev => ({
+
+      // Update client count in dashboard stats - directly set the client count
+      setDashboardStats((prev) => ({
         ...prev,
-        clientCount: clientsData.length,
+        clientCount: clientsData.length
       }));
       
+      console.log(`Setting dashboardStats.clientCount to ${clientsData.length}`);
+
       // Show error if all methods failed and no clients were found
       if (clientsData.length === 0 && errorMessage) {
-        setError("Some methods to fetch client relationships failed. Results may be incomplete.");
+        setError(
+          "Some methods to fetch client relationships failed. Results may be incomplete."
+        );
       }
+      
+      return clientsData; // Return the client data
     } catch (error) {
       console.error("Error loading clients:", error);
       setError("Failed to load clients. Please try again.");
+      return []; // Return empty array on error
     } finally {
       setLoading(false);
     }
   };
-  
+
   // Handle sort change
   const handleSortChange = (newSortBy: typeof sortBy) => {
     if (newSortBy === sortBy) {
@@ -169,26 +205,30 @@ export default function ClientsPage() {
     }
     setFilterMenuOpen(false);
   };
-  
+
   // Handle client note updates
   const handleOpenNotesDialog = (client: Client) => {
     setSelectedClient(client);
     setClientNotes(client.notes || "");
     setNotesDialogOpen(true);
   };
-  
+
   const handleSaveNotes = async () => {
     if (!selectedClient) return;
-    
+
     setNotesLoading(true);
     try {
       await updateClientNotes(selectedClient.id, clientNotes);
-      
+
       // Update local state
-      setClients(clients.map(client => 
-        client.id === selectedClient.id ? { ...client, notes: clientNotes } : client
-      ));
-      
+      setClients(
+        clients.map((client) =>
+          client.id === selectedClient.id
+            ? { ...client, notes: clientNotes }
+            : client
+        )
+      );
+
       setNotesDialogOpen(false);
     } catch (error) {
       console.error("Error updating client notes:", error);
@@ -197,11 +237,11 @@ export default function ClientsPage() {
       setNotesLoading(false);
     }
   };
-  
+
   // Filter clients based on search text
-  const filteredClients = clients.filter(client => {
+  const filteredClients = clients.filter((client) => {
     if (!searchText) return true;
-    
+
     const searchLower = searchText.toLowerCase();
     return (
       client.contactInfo?.name?.toLowerCase().includes(searchLower) ||
@@ -209,32 +249,41 @@ export default function ClientsPage() {
       client.contactInfo?.phone?.toLowerCase().includes(searchLower)
     );
   });
-  
+
   // Load clients and stats on initial render
   useEffect(() => {
-    if (agent) {
-      loadClients();
-      loadDashboardStats();
-    }
+    const loadData = async () => {
+      if (agent) {
+        await loadClients();
+        await loadDashboardStats();
+      }
+    };
+    
+    loadData();
   }, [agent, sortBy, sortDirection]);
-  
+
   // If not authenticated, show access denied
   if (!agent) {
     return (
       <div className="px-4 py-5 sm:p-6 bg-white shadow sm:rounded-lg text-center">
-        <h3 className="text-lg font-medium text-gray-900">Unauthorized Access</h3>
+        <h3 className="text-lg font-medium text-gray-900">
+          Unauthorized Access
+        </h3>
         <div className="mt-2 text-sm text-gray-500">
           <p>Only agents can access the clients page.</p>
         </div>
         <div className="mt-5">
-          <Link href="/dashboard" className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+          >
             Return to Dashboard
           </Link>
         </div>
       </div>
     );
   }
-  
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <div className="sm:flex sm:items-center sm:justify-between">
@@ -255,7 +304,7 @@ export default function ClientsPage() {
             <ArrowPathIcon className="h-4 w-4 mr-1" />
             Refresh
           </button>
-          
+
           <div className="relative inline-block text-left">
             <button
               type="button"
@@ -263,35 +312,56 @@ export default function ClientsPage() {
               onClick={() => setFilterMenuOpen(!filterMenuOpen)}
             >
               Sort by
-              <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+              <ChevronDownIcon
+                className="ml-2 -mr-1 h-5 w-5"
+                aria-hidden="true"
+              />
             </button>
-            
+
             {filterMenuOpen && (
               <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                 <div className="py-1" role="menu" aria-orientation="vertical">
                   <button
                     className={`block px-4 py-2 text-sm w-full text-left ${
-                      sortBy === "lastBookingDate" ? "text-cyan-700 bg-gray-100" : "text-gray-700"
+                      sortBy === "lastBookingDate"
+                        ? "text-cyan-700 bg-gray-100"
+                        : "text-gray-700"
                     }`}
                     onClick={() => handleSortChange("lastBookingDate")}
                   >
-                    Last Booking Date {sortBy === "lastBookingDate" && (sortDirection === "asc" ? "(Oldest First)" : "(Newest First)")}
+                    Last Booking Date{" "}
+                    {sortBy === "lastBookingDate" &&
+                      (sortDirection === "asc"
+                        ? "(Oldest First)"
+                        : "(Newest First)")}
                   </button>
                   <button
                     className={`block px-4 py-2 text-sm w-full text-left ${
-                      sortBy === "totalSpent" ? "text-cyan-700 bg-gray-100" : "text-gray-700"
+                      sortBy === "totalSpent"
+                        ? "text-cyan-700 bg-gray-100"
+                        : "text-gray-700"
                     }`}
                     onClick={() => handleSortChange("totalSpent")}
                   >
-                    Total Spent {sortBy === "totalSpent" && (sortDirection === "asc" ? "(Low to High)" : "(High to Low)")}
+                    Total Spent{" "}
+                    {sortBy === "totalSpent" &&
+                      (sortDirection === "asc"
+                        ? "(Low to High)"
+                        : "(High to Low)")}
                   </button>
                   <button
                     className={`block px-4 py-2 text-sm w-full text-left ${
-                      sortBy === "totalBookings" ? "text-cyan-700 bg-gray-100" : "text-gray-700"
+                      sortBy === "totalBookings"
+                        ? "text-cyan-700 bg-gray-100"
+                        : "text-gray-700"
                     }`}
                     onClick={() => handleSortChange("totalBookings")}
                   >
-                    Number of Bookings {sortBy === "totalBookings" && (sortDirection === "asc" ? "(Low to High)" : "(High to Low)")}
+                    Number of Bookings{" "}
+                    {sortBy === "totalBookings" &&
+                      (sortDirection === "asc"
+                        ? "(Low to High)"
+                        : "(High to Low)")}
                   </button>
                 </div>
               </div>
@@ -299,7 +369,7 @@ export default function ClientsPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Dashboard Stats */}
       <div className="mt-6 mb-8">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -308,16 +378,23 @@ export default function ClientsPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <UsersIcon className="h-6 w-6 text-cyan-600" aria-hidden="true" />
+                  <UsersIcon
+                    className="h-6 w-6 text-cyan-600"
+                    aria-hidden="true"
+                  />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Clients</dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Clients
+                    </dt>
                     <dd>
                       {statsLoading ? (
                         <div className="h-7 w-16 bg-gray-200 animate-pulse rounded"></div>
                       ) : (
-                        <div className="text-lg font-medium text-gray-900">{dashboardStats.clientCount}</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {dashboardStats.clientCount}
+                        </div>
                       )}
                     </dd>
                   </dl>
@@ -325,22 +402,29 @@ export default function ClientsPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Packages stat */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <TagIcon className="h-6 w-6 text-cyan-600" aria-hidden="true" />
+                  <TagIcon
+                    className="h-6 w-6 text-cyan-600"
+                    aria-hidden="true"
+                  />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Packages</dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Packages
+                    </dt>
                     <dd>
                       {statsLoading ? (
                         <div className="h-7 w-16 bg-gray-200 animate-pulse rounded"></div>
                       ) : (
-                        <div className="text-lg font-medium text-gray-900">{dashboardStats.packageCount}</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {dashboardStats.packageCount}
+                        </div>
                       )}
                     </dd>
                   </dl>
@@ -348,22 +432,29 @@ export default function ClientsPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Revenue stat */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <CurrencyDollarIcon className="h-6 w-6 text-cyan-600" aria-hidden="true" />
+                  <CurrencyDollarIcon
+                    className="h-6 w-6 text-cyan-600"
+                    aria-hidden="true"
+                  />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Revenue
+                    </dt>
                     <dd>
                       {statsLoading ? (
                         <div className="h-7 w-28 bg-gray-200 animate-pulse rounded"></div>
                       ) : (
-                        <div className="text-lg font-medium text-gray-900">{formatCurrency(dashboardStats.totalRevenue)}</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {formatCurrency(dashboardStats.totalRevenue)}
+                        </div>
                       )}
                     </dd>
                   </dl>
@@ -373,12 +464,15 @@ export default function ClientsPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Search bar */}
       <div className="mt-6 mb-6">
         <div className="mt-1 relative rounded-md shadow-sm">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+            <MagnifyingGlassIcon
+              className="h-5 w-5 text-gray-400"
+              aria-hidden="true"
+            />
           </div>
           <input
             type="text"
@@ -389,7 +483,7 @@ export default function ClientsPage() {
           />
         </div>
       </div>
-      
+
       {/* Error message */}
       {error && (
         <div className="rounded-md bg-red-50 p-4 my-4">
@@ -403,33 +497,42 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
-      
+
       {/* Loading state */}
       {loading && (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
         </div>
       )}
-      
+
       {/* Empty state */}
       {!loading && filteredClients.length === 0 && (
         <div className="bg-white shadow overflow-hidden sm:rounded-md py-10 px-4 text-center">
-          <svg 
-            className="mx-auto h-16 w-16 text-gray-400" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24" 
+          <svg
+            className="mx-auto h-16 w-16 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1}
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+            />
           </svg>
-          <h3 className="mt-2 text-lg font-medium text-gray-900">No clients found</h3>
+          <h3 className="mt-2 text-lg font-medium text-gray-900">
+            No clients found
+          </h3>
           <p className="mt-1 text-gray-500">
-            {searchText ? "No clients match your search criteria." : "When travelers book your packages, they'll appear here as client relationships."}
+            {searchText
+              ? "No clients match your search criteria."
+              : "When travelers book your packages, they'll appear here as client relationships."}
           </p>
         </div>
       )}
-      
+
       {/* Client cards */}
       {!loading && filteredClients.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -468,27 +571,34 @@ export default function ClientsPage() {
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                    {client.status.charAt(0).toUpperCase() +
+                      client.status.slice(1)}
                   </span>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-2 mt-4 text-center">
                 <div className="border-r border-gray-200">
-                  <p className="text-lg font-semibold text-gray-900">{client.totalBookings}</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {client.totalBookings}
+                  </p>
                   <p className="text-xs text-gray-500">Bookings</p>
                 </div>
                 <div className="border-r border-gray-200">
-                  <p className="text-lg font-semibold text-gray-900">{formatCurrency(client.totalSpent)}</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatCurrency(client.totalSpent)}
+                  </p>
                   <p className="text-xs text-gray-500">Total Spent</p>
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-gray-900">{displayDate(client.lastBookingDate)}</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {displayDate(client.lastBookingDate)}
+                  </p>
                   <p className="text-xs text-gray-500">Last Booking</p>
                 </div>
               </div>
-              
-              <div className="mt-4 flex justify-around border-t border-gray-200 pt-4">
+
+              {/* <div className="mt-4 flex justify-around border-t border-gray-200 pt-4">
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -521,12 +631,12 @@ export default function ClientsPage() {
                   <ChatBubbleLeftIcon className="h-4 w-4 mr-1" />
                   <span className="text-sm">Chat</span>
                 </button>
-              </div>
+              </div> */}
             </div>
           ))}
         </div>
       )}
-      
+
       {/* Notes dialog */}
       <Modal
         isOpen={notesDialogOpen}
@@ -563,4 +673,4 @@ export default function ClientsPage() {
       </Modal>
     </div>
   );
-} 
+}

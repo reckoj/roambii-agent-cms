@@ -89,8 +89,8 @@ const convertToBooking = (doc: DocumentData): Booking => {
     notes: data.notes,
     paymentMethod: data.payment_method,
     paymentStatus: data.payment_status || "unpaid",
-    createdAt: createdAtResult?.toISOString() || new Date().toISOString(),
-    updatedAt: updatedAtResult?.toISOString() || new Date().toISOString(),
+    createdAt: createdAtResult || new Date(),
+    updatedAt: updatedAtResult || new Date(),
   };
 };
 
@@ -133,12 +133,40 @@ export const createBooking = async (
 
     const docRef = await addDoc(bookingRef, newBooking);
 
+    // Increment the package sales count if there's a valid package ID
+    if (bookingData.packageId) {
+      try {
+        console.log(`Incrementing sales count for package ${bookingData.packageId}`);
+        const packageRef = doc(db, "package_info", bookingData.packageId);
+        const packageDoc = await getDoc(packageRef);
+        
+        if (packageDoc.exists()) {
+          const packageData = packageDoc.data();
+          const currentSalesCount = packageData.sales_count || 0;
+          console.log(`Current sales count for package ${bookingData.packageId}: ${currentSalesCount}`);
+          
+          await updateDoc(packageRef, { 
+            sales_count: currentSalesCount + 1,
+            updated_at: serverTimestamp() 
+          });
+          console.log(`Updated package ${bookingData.packageId} sales count to ${currentSalesCount + 1}`);
+        } else {
+          console.warn(`Package ${bookingData.packageId} not found when updating sales count`);
+        }
+      } catch (error) {
+        console.error("Error incrementing package sales count:", error);
+        // Don't throw here, as the booking was already created
+      }
+    } else {
+      console.warn("No packageId found in booking data, cannot update sales count");
+    }
+
     // Return the booking with the new ID
     return {
       ...bookingData,
       id: docRef.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
   } catch (error) {
     console.error("Error creating booking:", error);
@@ -350,12 +378,43 @@ export const getBookingStats = async (
   agentId: string
 ): Promise<BookingStats> => {
   try {
+    console.log("Fetching booking stats for agent:", agentId);
     const bookingsRef = collection(db, "bookings");
+    const bookingDocs = new Map();
 
-    // Query all bookings for the agent
-    const bookingsQuery = query(bookingsRef, where("agent_id", "==", agentId));
+    // Try different query approaches to find all bookings for this agent
+    
+    // 1. Try agent_id field (direct field)
+    const agentIdQuery = query(bookingsRef, where("agent_id", "==", agentId));
+    console.log("Querying with agent_id field");
+    const agentIdSnapshot = await getDocs(agentIdQuery);
+    console.log(`Found ${agentIdSnapshot.size} bookings with agent_id match`);
+    agentIdSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 2. Try agentId field (camelCase variation)
+    const agentIdCamelQuery = query(bookingsRef, where("agentId", "==", agentId));
+    console.log("Querying with agentId field");
+    const agentIdCamelSnapshot = await getDocs(agentIdCamelQuery);
+    console.log(`Found ${agentIdCamelSnapshot.size} bookings with agentId match`);
+    agentIdCamelSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 3. Try packageDetails.agent.id field
+    const packageAgentQuery = query(bookingsRef, where("packageDetails.agent.id", "==", agentId));
+    console.log("Querying with packageDetails.agent.id field");
+    const packageAgentSnapshot = await getDocs(packageAgentQuery);
+    console.log(`Found ${packageAgentSnapshot.size} bookings with packageDetails.agent.id match`);
+    packageAgentSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    
+    // 4. Try agent.id field
+    const agentObjectQuery = query(bookingsRef, where("agent.id", "==", agentId));
+    console.log("Querying with agent.id field");
+    const agentObjectSnapshot = await getDocs(agentObjectQuery);
+    console.log(`Found ${agentObjectSnapshot.size} bookings with agent.id match`);
+    agentObjectSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
 
-    const snapshot = await getDocs(bookingsQuery);
+    // Combine all results
+    const snapshot = Array.from(bookingDocs.values());
+    console.log(`Combined total of ${snapshot.length} unique bookings`);
 
     // Calculate statistics
     const now = new Date();
@@ -372,22 +431,66 @@ export const getBookingStats = async (
 
     snapshot.forEach((doc) => {
       const data = doc.data();
+      console.log(`Processing booking ${doc.id} with status: ${data.status || 'unknown'}`);
+      
       totalBookings++;
-      totalRevenue += data.price || 0;
+      
+      // Get price from various possible fields
+      const price = parseFloat(data.price) || parseFloat(data.payment?.amount) || parseFloat(data.packageDetails?.price) || 0;
+      console.log(`Booking ${doc.id} price: ${price}`);
+      totalRevenue += price;
 
-      // Count by status
-      if (data.status === "confirmed") confirmedBookings++;
-      else if (data.status === "pending") pendingBookings++;
-      else if (data.status === "cancelled") cancelledBookings++;
+      // Count by status - handle different case variations
+      const status = (data.status || '').toLowerCase();
+      if (status === "confirmed" || status === "complete" || status === "completed") {
+        confirmedBookings++;
+      } else if (status === "pending" || status === "") {
+        pendingBookings++;
+      } else if (status === "cancelled" || status === "canceled") {
+        cancelledBookings++;
+      } else {
+        // Default to pending for unknown statuses
+        pendingBookings++;
+        console.log(`Booking ${doc.id} has unknown status: ${status}, counting as pending`);
+      }
 
-      // This month's data
-      const createdAt = data.created_at as Timestamp;
-      if (createdAt && createdAt >= startOfMonthTimestamp) {
-        bookingsThisMonth++;
-        revenueThisMonth += data.price || 0;
+      // This month's data - try different timestamp fields
+      const createdAt = data.created_at || data.createdAt;
+      if (createdAt) {
+        let createdAtTimestamp: Timestamp | null = null;
+        
+        if (createdAt instanceof Timestamp) {
+          createdAtTimestamp = createdAt;
+        } else if (createdAt.seconds && createdAt.nanoseconds) {
+          createdAtTimestamp = new Timestamp(createdAt.seconds, createdAt.nanoseconds);
+        } else if (typeof createdAt === 'string') {
+          try {
+            const dateObj = new Date(createdAt);
+            if (!isNaN(dateObj.getTime())) {
+              createdAtTimestamp = Timestamp.fromDate(dateObj);
+            }
+          } catch (e) {
+            console.log(`Could not convert string date: ${createdAt}`);
+          }
+        }
+          
+        if (createdAtTimestamp && createdAtTimestamp >= startOfMonthTimestamp) {
+          bookingsThisMonth++;
+          revenueThisMonth += price;
+        }
+      } else {
+        // If no creation date, assume it's recent and count it
+        const updatedAt = data.updated_at || data.updatedAt;
+        if (updatedAt) {
+          bookingsThisMonth++;
+          revenueThisMonth += price;
+        }
       }
     });
 
+    console.log(`Stats calculation complete. Total: ${totalBookings}, Revenue: ${totalRevenue}`);
+    console.log(`Status counts - Confirmed: ${confirmedBookings}, Pending: ${pendingBookings}, Cancelled: ${cancelledBookings}`);
+    
     return {
       total: totalBookings,
       confirmed: confirmedBookings,
@@ -399,7 +502,16 @@ export const getBookingStats = async (
     };
   } catch (error) {
     console.error("Error getting booking stats:", error);
-    throw error;
+    // Return default values on error
+    return {
+      total: 0,
+      confirmed: 0,
+      pending: 0,
+      cancelled: 0,
+      revenue: 0,
+      revenueMonth: 0,
+      bookingsMonth: 0,
+    };
   }
 };
 
