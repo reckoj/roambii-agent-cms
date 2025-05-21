@@ -174,8 +174,8 @@ export default function BookingFormPage() {
         packageId: formData.packageId,
         packageName: formData.packageName,
         agentId: agent.id,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        startDate: formData.startDate.toISOString(),
+        endDate: formData.endDate.toISOString(),
         price,
         totalPaid: 0,
         balance: price,
@@ -184,8 +184,8 @@ export default function BookingFormPage() {
         notes: formData.notes || undefined,
         paymentStatus: "unpaid",
         clientId: "",
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       if (isEdit) {
