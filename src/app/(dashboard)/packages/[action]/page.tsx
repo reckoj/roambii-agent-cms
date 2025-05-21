@@ -108,12 +108,12 @@ export default function PackageFormPage() {
     arrivingTo: "",
     returningFrom: "",
     returningTo: "",
-    departingTime: new Date(),
-    arrivingToTime: new Date(),
-    returningFromTime: new Date(),
-    returningToTime: new Date(),
-    departureDate: new Date(),
-    returnDate: new Date(),
+    departingTime: new Date().toISOString(),
+    arrivingToTime: new Date().toISOString(),
+    returningFromTime: new Date().toISOString(),
+    returningToTime: new Date().toISOString(),
+    departureDate: new Date().toISOString(),
+    returnDate: new Date().toISOString(),
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -294,6 +294,10 @@ export default function PackageFormPage() {
         bedrooms: formData.bedrooms === "" ? 0 : formData.bedrooms,
         guestAmount: formData.guestAmount === "" ? 0 : formData.guestAmount,
         rating: formData.rating === "" ? 0 : formData.rating,
+        checkInDate: formData.checkInDate.toISOString(),
+        checkOutDate: formData.checkOutDate.toISOString(),
+        checkInTime: formData.checkInTime.toISOString(),
+        checkOutTime: formData.checkOutTime.toISOString(),
         agent: agent
           ? {
               id: agent.id,
@@ -301,7 +305,16 @@ export default function PackageFormPage() {
               avatar: agent.avatar,
             }
           : { id: "", name: "" },
-        flightInfo: hasFlightInfo() ? flightInfo : undefined,
+        flightInfo: hasFlightInfo() && flightInfo ? {
+          ...flightInfo,
+          id: flightInfo.id || (isEdit ? packageId : crypto.randomUUID()),
+          departingTime: flightInfo.departingTime || "",
+          arrivingToTime: flightInfo.arrivingToTime || "",
+          returningFromTime: flightInfo.returningFromTime || "",
+          returningToTime: flightInfo.returningToTime || "",
+          departureDate: flightInfo.departureDate || "",
+          returnDate: flightInfo.returnDate || "",
+        } : undefined,
         salesCount: isEdit && formData.id ? (await getPackageById(formData.id))?.salesCount || 0 : 0,
       };
 
@@ -802,7 +815,7 @@ export default function PackageFormPage() {
                           if (!prev) return prev;
                           return {
                             ...prev,
-                            departureDate: date || undefined,
+                            departureDate: date ? date.toISOString() : undefined,
                           };
                         })
                       }
@@ -826,7 +839,7 @@ export default function PackageFormPage() {
                           if (!prev) return prev;
                           return {
                             ...prev,
-                            returnDate: date || undefined,
+                            returnDate: date ? date.toISOString() : undefined,
                           };
                         })
                       }
