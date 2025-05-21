@@ -343,8 +343,8 @@ function convertBookingData(id: string, data: DocumentData): Booking {
     packageId: data.package_id || "",
     packageName: data.package_name || "Unknown Package",
     agentId: data.agent_id || "",
-    startDate,
-    endDate,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
     price: data.price || 0,
     totalPaid: data.total_paid || 0,
     balance: data.balance || 0,
@@ -353,10 +353,10 @@ function convertBookingData(id: string, data: DocumentData): Booking {
     notes: data.notes,
     paymentMethod: data.payment_method,
     paymentStatus: data.payment_status || "unpaid",
-    createdAt,
+    createdAt: createdAt.toISOString(),
     updatedAt:
       data.updated_at instanceof Timestamp
-        ? data.updated_at.toDate()
-        : new Date(data.updated_at || Date.now()),
+        ? data.updated_at.toDate().toISOString()
+        : new Date(data.updated_at || Date.now()).toISOString(),
   };
 }
