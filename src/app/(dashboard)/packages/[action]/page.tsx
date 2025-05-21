@@ -444,7 +444,7 @@ export default function PackageFormPage() {
                     value={formData.type}
                     onChange={handleInputChange}
                     required
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                   >
                     {PACKAGE_TYPES.map((type) => (
                       <option key={type} value={type}>
@@ -471,7 +471,7 @@ export default function PackageFormPage() {
                       onChange={handleInputChange}
                       required
                       placeholder="Enter package name"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
 
@@ -496,7 +496,7 @@ export default function PackageFormPage() {
                         min="0"
                         step="0.01"
                         placeholder="0.00"
-                        className="block w-full pl-8 rounded-lg border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                        className="block w-full pl-8 rounded-lg border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                       />
                     </div>
                   </div>
@@ -519,7 +519,7 @@ export default function PackageFormPage() {
                       onChange={handleInputChange}
                       min="0"
                       placeholder="Enter number of bedrooms"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
 
@@ -538,7 +538,7 @@ export default function PackageFormPage() {
                       onChange={handleInputChange}
                       min="0"
                       placeholder="Enter number of bathrooms"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
 
@@ -559,7 +559,7 @@ export default function PackageFormPage() {
                       max="5"
                       step="0.1"
                       placeholder="Enter rating (0-5)"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export default function PackageFormPage() {
                     <DatePicker
                       selected={formData.checkInDate ? new Date(formData.checkInDate) : null}
                       onChange={(date) => handleDateChange(date, "checkInDate")}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                       dateFormat="MM/dd/yyyy"
                     />
                   </div>
@@ -591,7 +591,7 @@ export default function PackageFormPage() {
                     <DatePicker
                       selected={formData.checkOutDate ? new Date(formData.checkOutDate) : null}
                       onChange={(date) => handleDateChange(date, "checkOutDate")}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                       dateFormat="MM/dd/yyyy"
                     />
                   </div>
@@ -613,7 +613,7 @@ export default function PackageFormPage() {
                       timeIntervals={15}
                       timeCaption="Time"
                       dateFormat="h:mm aa"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
 
@@ -632,7 +632,7 @@ export default function PackageFormPage() {
                       timeIntervals={15}
                       timeCaption="Time"
                       dateFormat="h:mm aa"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
                 </div>
@@ -653,7 +653,7 @@ export default function PackageFormPage() {
                     onChange={handleInputChange}
                     min="1"
                     placeholder="Enter number of guests"
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                   />
                 </div>
 
@@ -672,7 +672,7 @@ export default function PackageFormPage() {
                     value={formData.description}
                     onChange={handleInputChange}
                     placeholder="Enter package description"
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                   />
                 </div>
 
@@ -689,7 +689,7 @@ export default function PackageFormPage() {
                     id="roomType"
                     value={formData.roomType}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                   >
                     {ROOM_TYPES.map((type) => (
                       <option key={type} value={type}>
@@ -764,7 +764,7 @@ export default function PackageFormPage() {
                       value={flightInfo?.departingFrom || ""}
                       onChange={handleFlightInfoChange}
                       placeholder="Enter departure location"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
 
@@ -782,7 +782,7 @@ export default function PackageFormPage() {
                       value={flightInfo?.arrivingTo || ""}
                       onChange={handleFlightInfoChange}
                       placeholder="Enter arrival location"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                     />
                   </div>
                 </div>
@@ -807,7 +807,7 @@ export default function PackageFormPage() {
                         })
                       }
                       placeholderText="Select departure date"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                       dateFormat="MM/dd/yyyy"
                     />
                   </div>
@@ -831,7 +831,7 @@ export default function PackageFormPage() {
                         })
                       }
                       placeholderText="Select return date"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-500"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                       dateFormat="MM/dd/yyyy"
                     />
                   </div>

@@ -46,7 +46,7 @@ const navigation: NavItem[] = [
 
 const userNavigation: NavItem[] = [
   { name: "Your Profile", href: "/profile", icon: UserCircleIcon },
-  { name: "Settings", href: "/settings", icon: Cog6ToothIcon },
+  // { name: "Settings", href: "/settings", icon: Cog6ToothIcon },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {

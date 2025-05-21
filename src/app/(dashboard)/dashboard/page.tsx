@@ -40,6 +40,7 @@ import { getAgentRevenueStats } from "@/lib/revenue-service";
 import { setPackages } from "@/lib/redux/slices/packageSlice";
 import { AnyAction } from "redux";
 import { Package } from "@/types/package";
+import AgentProfileCard from "@/components/AgentProfileCard";
 
 // Register ChartJS components
 ChartJS.register(
@@ -972,30 +973,36 @@ export default function DashboardPage() {
       </div>
 
       {/* Revenue Insights & Package Performance */}
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <RevenueInsights
-          totalRevenue={totalRevenue}
-          avgBookingValue={
-            bookingStats && bookingStats.total > 0
-              ? bookingStats.revenue / bookingStats.total
-              : 0
-          }
-          topPackageRevenue={
-            revenueStats?.topPackageRevenue?.revenue || 
-            (packagePerformanceData.length > 0 ? packagePerformanceData[0].revenue : 0)
-          }
-          revenueGrowth={
-            revenueStats?.monthlyRevenue?.percentChange || 
-            (bookingStats?.revenueMonth && bookingStats.revenueMonth > 0 ? 15 : 0)
-          }
-          loading={loading || loadingStats || loadingRevenue}
-        />
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <AgentProfileCard />
+        </div>
+        
+        <div className="lg:col-span-2 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <RevenueInsights
+            totalRevenue={totalRevenue}
+            avgBookingValue={
+              bookingStats && bookingStats.total > 0
+                ? bookingStats.revenue / bookingStats.total
+                : 0
+            }
+            topPackageRevenue={
+              revenueStats?.topPackageRevenue?.revenue || 
+              (packagePerformanceData.length > 0 ? packagePerformanceData[0].revenue : 0)
+            }
+            revenueGrowth={
+              revenueStats?.monthlyRevenue?.percentChange || 
+              (bookingStats?.revenueMonth && bookingStats.revenueMonth > 0 ? 15 : 0)
+            }
+            loading={loading || loadingStats || loadingRevenue}
+          />
 
-        <PackagePerformance
-          packages={packagePerformanceData}
-          loading={loading || packagesLoading}
-          timeFrame="All Time"
-        />
+          <PackagePerformance
+            packages={packagePerformanceData}
+            loading={loading || packagesLoading}
+            timeFrame="All Time"
+          />
+        </div>
       </div>
 
       {/* Monthly Bookings & Upcoming Bookings */}
