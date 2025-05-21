@@ -3,40 +3,75 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { RootState } from "@/lib/redux/store";
-import { 
+import {
   fetchAgentProfileAsync,
   updateAgentProfileAsync,
 } from "@/lib/redux/slices/agentProfileSlice";
-import { UserCircleIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  UserCircleIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import Link from "next/link";
 
 // Language and specialty options for dropdown selection
 const LANGUAGE_OPTIONS = [
-  "English", "Spanish", "French", "German", "Portuguese", "Italian", 
-  "Mandarin", "Japanese", "Korean", "Russian", "Arabic", "Hindi"
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Portuguese",
+  "Italian",
+  "Mandarin",
+  "Japanese",
+  "Korean",
+  "Russian",
+  "Arabic",
+  "Hindi",
 ];
 
 const SPECIALTY_OPTIONS = [
-  "Luxury Travel", "Adventure Travel", "Family Vacations", "Honeymoons", "Cruises",
-  "Solo Travel", "Group Travel", "Eco Tourism", "Cultural Tours", "Beach Resorts",
-  "City Breaks", "Backpacking"
+  "Luxury Travel",
+  "Adventure Travel",
+  "Family Vacations",
+  "Honeymoons",
+  "Cruises",
+  "Solo Travel",
+  "Group Travel",
+  "Eco Tourism",
+  "Cultural Tours",
+  "Beach Resorts",
+  "City Breaks",
+  "Backpacking",
 ];
 
 const REGION_OPTIONS = [
-  "North America", "South America", "Caribbean", "Europe", "Africa", 
-  "Middle East", "Asia", "Oceania", "Antarctica"
+  "North America",
+  "South America",
+  "Caribbean",
+  "Europe",
+  "Africa",
+  "Middle East",
+  "Asia",
+  "Oceania",
+  "Antarctica",
 ];
 
 // Find this class for text inputs
-const inputClass = "shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md";
+const inputClass =
+  "shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md";
 // Add text color and placeholder color to all text inputs
-const inputClassWithDarkText = "shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md text-gray-900 placeholder-gray-800";
+const inputClassWithDarkText =
+  "shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md text-gray-900 placeholder-gray-800";
 
 export default function ProfilePage() {
   const dispatch = useAppDispatch();
   const { agent } = useAppSelector((state: RootState) => state.auth);
-  const { profile, loading, error } = useAppSelector((state: RootState) => state.agentProfile);
-  
+  const { profile, loading, error } = useAppSelector(
+    (state: RootState) => state.agentProfile
+  );
+
   const [isEditing, setIsEditing] = useState(false);
   const [editableFields, setEditableFields] = useState({
     name: "",
@@ -93,24 +128,32 @@ export default function ProfilePage() {
   };
 
   // Handle form field changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
-    setEditableFields(prev => ({ ...prev, [name]: value }));
+    setEditableFields((prev) => ({ ...prev, [name]: value }));
   };
 
   // Handle checkbox arrays (languages, specialties)
-  const handleCheckboxArrayChange = (name: 'languages' | 'specialties', value: string, checked: boolean) => {
+  const handleCheckboxArrayChange = (
+    name: "languages" | "specialties",
+    value: string,
+    checked: boolean
+  ) => {
     if (checked) {
       // Add to array if checked
-      setEditableFields(prev => ({
+      setEditableFields((prev) => ({
         ...prev,
-        [name]: [...prev[name], value]
+        [name]: [...prev[name], value],
       }));
     } else {
       // Remove from array if unchecked
-      setEditableFields(prev => ({
+      setEditableFields((prev) => ({
         ...prev,
-        [name]: prev[name].filter(item => item !== value)
+        [name]: prev[name].filter((item) => item !== value),
       }));
     }
   };
@@ -123,32 +166,36 @@ export default function ProfilePage() {
 
     try {
       if (!profile) {
-        throw new Error('Profile not found');
+        throw new Error("Profile not found");
       }
 
       // Convert yearsOfExperience to number
-      const yearsOfExperience = parseInt(editableFields.yearsOfExperience.toString());
-      
-      await dispatch(updateAgentProfileAsync({
-        agentId: profile.id,
-        profileData: {
-          ...editableFields,
-          yearsOfExperience,
-        },
-        avatarFile: avatarFile || undefined,
-      })).unwrap();
+      const yearsOfExperience = parseInt(
+        editableFields.yearsOfExperience.toString()
+      );
+
+      await dispatch(
+        updateAgentProfileAsync({
+          agentId: profile.id,
+          profileData: {
+            ...editableFields,
+            yearsOfExperience,
+          },
+          avatarFile: avatarFile || undefined,
+        })
+      ).unwrap();
 
       setIsEditing(false);
       setAvatarFile(null);
       setAvatarPreview(null);
       setUpdateSuccess(true);
-      
+
       // Reset success message after a delay
       setTimeout(() => {
         setUpdateSuccess(false);
       }, 3000);
     } catch (error: any) {
-      setUpdateError(error.message || 'Failed to update profile');
+      setUpdateError(error.message || "Failed to update profile");
     } finally {
       setIsUploading(false);
     }
@@ -239,12 +286,10 @@ export default function ProfilePage() {
               </div>
               <div className="ml-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {profile?.name || 'Agent'}
+                  {profile?.name}
                 </h2>
-                <p className="text-sm text-gray-500">
-                  {profile?.email || ''}
-                </p>
-                {profile?.isProfileComplete ? (
+                <p className="text-sm text-gray-500">{profile?.email || ""}</p>
+                {/* {profile?.isProfileComplete ? (
                   <span className="inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     <CheckIcon className="mr-1 h-3 w-3" />
                     Profile Complete
@@ -254,10 +299,10 @@ export default function ProfilePage() {
                     <XMarkIcon className="mr-1 h-3 w-3" />
                     Profile Incomplete
                   </span>
-                )}
+                )} */}
               </div>
             </div>
-            
+
             <button
               type="button"
               onClick={() => setIsEditing(true)}
@@ -269,32 +314,49 @@ export default function ProfilePage() {
           </div>
 
           <div className="px-6 py-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Information</h3>
-            
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Profile Information
+            </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="text-sm font-medium text-gray-500 mb-1">Bio</h4>
-                <p className="text-gray-900 whitespace-pre-line">{profile?.bio || 'No bio provided'}</p>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-1">Experience</h4>
-                <p className="text-gray-900">
-                  {profile?.yearsOfExperience || 0} {profile?.yearsOfExperience === 1 ? 'year' : 'years'} of experience
+                <p className="text-gray-900 whitespace-pre-line">
+                  {profile?.bio || "No bio provided"}
                 </p>
               </div>
-              
+
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-1">Region Specialization</h4>
-                <p className="text-gray-900">{profile?.region || 'Not specified'}</p>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">
+                  Experience
+                </h4>
+                <p className="text-gray-900">
+                  {profile?.yearsOfExperience || 0}{" "}
+                  {profile?.yearsOfExperience === 1 ? "year" : "years"} of
+                  experience
+                </p>
               </div>
-              
+
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-1">Languages</h4>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">
+                  Region Specialization
+                </h4>
+                <p className="text-gray-900">
+                  {profile?.region || "Not specified"}
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">
+                  Languages
+                </h4>
                 <div className="flex flex-wrap gap-2">
                   {profile?.languages && profile.languages.length > 0 ? (
                     profile.languages.map((lang) => (
-                      <span key={lang} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span
+                        key={lang}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
                         {lang}
                       </span>
                     ))
@@ -303,13 +365,18 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              
+
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-1">Specialties</h4>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">
+                  Specialties
+                </h4>
                 <div className="flex flex-wrap gap-2">
                   {profile?.specialties && profile.specialties.length > 0 ? (
                     profile.specialties.map((specialty) => (
-                      <span key={specialty} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      <span
+                        key={specialty}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                      >
                         {specialty}
                       </span>
                     ))
@@ -318,24 +385,28 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              
+
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-1">Contact Information</h4>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">
+                  Contact Information
+                </h4>
                 <div className="space-y-2">
                   <p className="text-gray-900">
-                    <span className="font-medium">Email:</span> {profile?.email || 'Not provided'}
+                    <span className="font-medium">Email:</span>{" "}
+                    {profile?.email || "Not provided"}
                   </p>
                   <p className="text-gray-900">
-                    <span className="font-medium">Phone:</span> {profile?.phoneNumber || 'Not provided'}
+                    <span className="font-medium">Phone:</span>{" "}
+                    {profile?.phoneNumber || "Not provided"}
                   </p>
-                  {profile?.website && profile.website.trim() && (
+                  {/* {profile?.website && profile.website.trim() && (
                     <p className="text-gray-900">
                       <span className="font-medium">Website:</span>{' '}
                       <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-500">
                         {profile.website}
                       </a>
                     </p>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
@@ -343,7 +414,10 @@ export default function ProfilePage() {
         </div>
       ) : (
         // Edit Form
-        <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg overflow-hidden">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white shadow rounded-lg overflow-hidden"
+        >
           <div className="px-6 py-8 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row items-center">
               <div className="flex-shrink-0 h-32 w-32 rounded-full overflow-hidden bg-gray-100 mb-4 sm:mb-0">
@@ -365,7 +439,7 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-              
+
               <div className="ml-0 sm:ml-6 text-center sm:text-left">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Profile Picture
@@ -389,11 +463,16 @@ export default function ProfilePage() {
           </div>
 
           <div className="px-6 py-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Profile Information</h3>
-            
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Edit Profile Information
+            </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Name *
                 </label>
                 <input
@@ -406,9 +485,12 @@ export default function ProfilePage() {
                   className="shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md text-gray-900 placeholder-gray-800"
                 />
               </div>
-              
+
               <div className="md:col-span-2">
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="bio"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Bio
                 </label>
                 <textarea
@@ -421,9 +503,12 @@ export default function ProfilePage() {
                   placeholder="Tell travelers about yourself and your expertise"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="yearsOfExperience" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="yearsOfExperience"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Years of Experience
                 </label>
                 <input
@@ -437,9 +522,12 @@ export default function ProfilePage() {
                   className="shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md text-gray-900 placeholder-gray-800"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="region" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="region"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Region Specialization
                 </label>
                 <select
@@ -457,7 +545,7 @@ export default function ProfilePage() {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Languages
@@ -469,17 +557,26 @@ export default function ProfilePage() {
                         type="checkbox"
                         id={`language-${language}`}
                         checked={editableFields.languages.includes(language)}
-                        onChange={(e) => handleCheckboxArrayChange('languages', language, e.target.checked)}
+                        onChange={(e) =>
+                          handleCheckboxArrayChange(
+                            "languages",
+                            language,
+                            e.target.checked
+                          )
+                        }
                         className="h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
                       />
-                      <label htmlFor={`language-${language}`} className="ml-2 block text-sm text-gray-900">
+                      <label
+                        htmlFor={`language-${language}`}
+                        className="ml-2 block text-sm text-gray-900"
+                      >
                         {language}
                       </label>
                     </div>
                   ))}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Specialties
@@ -491,19 +588,31 @@ export default function ProfilePage() {
                         type="checkbox"
                         id={`specialty-${specialty}`}
                         checked={editableFields.specialties.includes(specialty)}
-                        onChange={(e) => handleCheckboxArrayChange('specialties', specialty, e.target.checked)}
+                        onChange={(e) =>
+                          handleCheckboxArrayChange(
+                            "specialties",
+                            specialty,
+                            e.target.checked
+                          )
+                        }
                         className="h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
                       />
-                      <label htmlFor={`specialty-${specialty}`} className="ml-2 block text-sm text-gray-900">
+                      <label
+                        htmlFor={`specialty-${specialty}`}
+                        className="ml-2 block text-sm text-gray-900"
+                      >
                         {specialty}
                       </label>
                     </div>
                   ))}
                 </div>
               </div>
-              
+
               <div>
-                <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="phoneNumber"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Phone Number
                 </label>
                 <input
@@ -516,9 +625,12 @@ export default function ProfilePage() {
                   placeholder="+1 (123) 456-7890"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="website"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Website
                 </label>
                 <input
@@ -548,13 +660,31 @@ export default function ProfilePage() {
               >
                 {isUploading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Saving...
                   </>
-                ) : 'Save Changes'}
+                ) : (
+                  "Save Changes"
+                )}
               </button>
             </div>
           </div>
@@ -562,4 +692,4 @@ export default function ProfilePage() {
       )}
     </div>
   );
-} 
+}

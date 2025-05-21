@@ -12,10 +12,10 @@ export interface Package {
   guestAmount: number;
   rating: number;
   isFeatured: boolean;
-  checkInDate: Date;
-  checkOutDate: Date;
-  checkInTime: Date;
-  checkOutTime: Date;
+  checkInDate: string;
+  checkOutDate: string;
+  checkInTime: string;
+  checkOutTime: string;
   salesCount: number;
   agent: {
     id: string;
@@ -29,12 +29,12 @@ export interface Package {
     arrivingTo?: string;
     returningFrom?: string;
     returningTo?: string;
-    departingTime?: Date;
-    arrivingToTime?: Date;
-    returningFromTime?: Date;
-    returningToTime?: Date;
-    departureDate?: Date;
-    returnDate?: Date;
+    departingTime?: string;
+    arrivingToTime?: string;
+    returningFromTime?: string;
+    returningToTime?: string;
+    departureDate?: string;
+    returnDate?: string;
   };
   createdAt?: string;
   updatedAt?: string;

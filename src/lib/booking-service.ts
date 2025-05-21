@@ -31,6 +31,8 @@ import { Package } from "@/types/package";
 // Safe date conversion function
 const safeToDate = (timestamp: any): Date | null => {
   if (!timestamp) return null;
+  
+  console.log("Converting to Date:", typeof timestamp, timestamp);
 
   try {
     // If it's a Firestore Timestamp
@@ -59,6 +61,36 @@ const safeToDate = (timestamp: any): Date | null => {
   }
 };
 
+// Helper to convert any date format to ISO string
+const toISOString = (date: any): string => {
+  if (!date) return new Date().toISOString();
+  
+  if (typeof date === 'string') {
+    // Check if already ISO format
+    if (date.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z$/)) {
+      return date;
+    }
+    
+    // Try to parse it
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  
+  if (date instanceof Date) {
+    return date.toISOString();
+  }
+  
+  // If it's a Firestore Timestamp
+  if (date?.toDate && typeof date.toDate === "function") {
+    return date.toDate().toISOString();
+  }
+  
+  // Default fallback
+  return new Date().toISOString();
+};
+
 // Convert Firestore document to Booking type
 const convertToBooking = (doc: DocumentData): Booking => {
   const data = doc.data();
@@ -69,6 +101,14 @@ const convertToBooking = (doc: DocumentData): Booking => {
   const createdAtResult = safeToDate(data.created_at);
   const updatedAtResult = safeToDate(data.updated_at);
 
+  // Create serialized dates for Redux
+  const startDateISO = startDateResult ? startDateResult.toISOString() : new Date().toISOString();
+  const endDateISO = endDateResult 
+    ? endDateResult.toISOString() 
+    : new Date(new Date().setDate(new Date().getDate() + 7)).toISOString();
+  const createdAtISO = createdAtResult ? createdAtResult.toISOString() : new Date().toISOString();
+  const updatedAtISO = updatedAtResult ? updatedAtResult.toISOString() : new Date().toISOString();
+
   return {
     id: doc.id,
     clientId: data.client_id,
@@ -78,9 +118,8 @@ const convertToBooking = (doc: DocumentData): Booking => {
     packageId: data.package_id,
     packageName: data.package_name,
     agentId: data.agent_id,
-    startDate: startDateResult || new Date(), // Default to current date if null
-    endDate:
-      endDateResult || new Date(new Date().setDate(new Date().getDate() + 7)), // Default to +7 days if null
+    startDate: startDateISO,
+    endDate: endDateISO,
     price: data.price || 0,
     totalPaid: data.total_paid || 0,
     balance: data.balance || 0,
@@ -89,8 +128,8 @@ const convertToBooking = (doc: DocumentData): Booking => {
     notes: data.notes,
     paymentMethod: data.payment_method,
     paymentStatus: data.payment_status || "unpaid",
-    createdAt: createdAtResult || new Date(),
-    updatedAt: updatedAtResult || new Date(),
+    createdAt: createdAtISO,
+    updatedAt: updatedAtISO,
   };
 };
 
@@ -100,6 +139,37 @@ export const createBooking = async (
 ): Promise<Booking> => {
   try {
     const bookingRef = collection(db, "bookings");
+
+    // Convert string dates to Timestamps for Firestore storage
+    let startDateTimestamp;
+    let endDateTimestamp;
+
+    console.log("Converting dates for booking creation:", {
+      startDate: bookingData.startDate,
+      endDate: bookingData.endDate
+    });
+
+    // Convert string startDate to Timestamp
+    if (typeof bookingData.startDate === 'string') {
+      const startDate = new Date(bookingData.startDate);
+      console.log("Converted startDate:", startDate);
+      startDateTimestamp = Timestamp.fromDate(startDate);
+    } else {
+      // For any other type, use current date
+      console.log("Using default startDate");
+      startDateTimestamp = Timestamp.fromDate(new Date());
+    }
+
+    // Convert string endDate to Timestamp
+    if (typeof bookingData.endDate === 'string') {
+      const endDate = new Date(bookingData.endDate);
+      console.log("Converted endDate:", endDate);
+      endDateTimestamp = Timestamp.fromDate(endDate);
+    } else {
+      // For any other type, use a date 7 days from now
+      console.log("Using default endDate");
+      endDateTimestamp = Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() + 7)));
+    }
 
     // Prepare data for Firestore
     const newBooking = {
@@ -111,14 +181,8 @@ export const createBooking = async (
       package_id: bookingData.packageId,
       package_name: bookingData.packageName,
       agent_id: bookingData.agentId,
-      start_date:
-        bookingData.startDate instanceof Date
-          ? Timestamp.fromDate(bookingData.startDate)
-          : Timestamp.fromDate(new Date(bookingData.startDate)),
-      end_date:
-        bookingData.endDate instanceof Date
-          ? Timestamp.fromDate(bookingData.endDate)
-          : Timestamp.fromDate(new Date(bookingData.endDate)),
+      start_date: startDateTimestamp,
+      end_date: endDateTimestamp,
       price: bookingData.price,
       total_paid: bookingData.totalPaid || 0,
       balance: bookingData.price - (bookingData.totalPaid || 0),
@@ -161,12 +225,12 @@ export const createBooking = async (
       console.warn("No packageId found in booking data, cannot update sales count");
     }
 
-    // Return the booking with the new ID
+    // Return the booking with the new ID and serialized dates
     return {
       ...bookingData,
       id: docRef.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
   } catch (error) {
     console.error("Error creating booking:", error);
@@ -198,6 +262,7 @@ export const updateBooking = async (
 ): Promise<Booking> => {
   try {
     const bookingRef = doc(db, "bookings", id);
+    console.log("Updating booking:", id, "with data:", JSON.stringify(bookingData));
 
     // Prepare update data for Firestore
     const updateData: any = {
@@ -254,17 +319,19 @@ export const updateBooking = async (
       updateData.travelers = bookingData.travelers;
 
     if (bookingData.startDate !== undefined) {
-      updateData.start_date =
-        bookingData.startDate instanceof Date
-          ? Timestamp.fromDate(bookingData.startDate)
-          : Timestamp.fromDate(new Date(bookingData.startDate));
+      console.log("Converting startDate for update:", bookingData.startDate);
+      // Always convert to Date first, then to Timestamp
+      const startDate = new Date(bookingData.startDate);
+      console.log("Converted startDate:", startDate);
+      updateData.start_date = Timestamp.fromDate(startDate);
     }
 
     if (bookingData.endDate !== undefined) {
-      updateData.end_date =
-        bookingData.endDate instanceof Date
-          ? Timestamp.fromDate(bookingData.endDate)
-          : Timestamp.fromDate(new Date(bookingData.endDate));
+      console.log("Converting endDate for update:", bookingData.endDate);
+      // Always convert to Date first, then to Timestamp
+      const endDate = new Date(bookingData.endDate);
+      console.log("Converted endDate:", endDate);
+      updateData.end_date = Timestamp.fromDate(endDate);
     }
 
     // Update document
@@ -287,10 +354,12 @@ export const updateBooking = async (
 export const getBookings = async (
   agentId: string,
   filters: BookingFilter = {},
-  lastVisible?: DocumentSnapshot | null,
+  lastVisible?: { id: string } | null,
   itemsPerPage: number = 10
-): Promise<{ bookings: Booking[]; lastVisible: DocumentSnapshot | null }> => {
+): Promise<{ bookings: Booking[]; lastVisible: { id: string } | null }> => {
   try {
+    console.log("Getting bookings with filters:", JSON.stringify(filters));
+    
     let bookingsQuery = query(
       collection(db, "bookings"),
       where("agent_id", "==", agentId),
@@ -306,7 +375,11 @@ export const getBookings = async (
     }
 
     if (filters.startDate) {
-      const startTimestamp = Timestamp.fromDate(filters.startDate);
+      console.log("Converting start date filter:", filters.startDate);
+      // Convert string date to Date object for Firestore
+      const startDate = new Date(filters.startDate);
+      console.log("Converted start date:", startDate);
+      const startTimestamp = Timestamp.fromDate(startDate);
       bookingsQuery = query(
         bookingsQuery,
         where("start_date", ">=", startTimestamp)
@@ -314,7 +387,11 @@ export const getBookings = async (
     }
 
     if (filters.endDate) {
-      const endTimestamp = Timestamp.fromDate(filters.endDate);
+      console.log("Converting end date filter:", filters.endDate);
+      // Convert string date to Date object for Firestore
+      const endDate = new Date(filters.endDate);
+      console.log("Converted end date:", endDate);
+      const endTimestamp = Timestamp.fromDate(endDate);
       bookingsQuery = query(
         bookingsQuery,
         where("end_date", "<=", endTimestamp)
@@ -336,18 +413,26 @@ export const getBookings = async (
     }
 
     // Apply pagination
-    if (lastVisible) {
-      bookingsQuery = query(
-        bookingsQuery,
-        startAfter(lastVisible),
-        limit(itemsPerPage)
-      );
+    if (lastVisible && lastVisible.id) {
+      const lastDoc = await getDoc(doc(db, "bookings", lastVisible.id));
+      if (lastDoc.exists()) {
+        bookingsQuery = query(
+          bookingsQuery,
+          startAfter(lastDoc),
+          limit(itemsPerPage)
+        );
+      } else {
+        bookingsQuery = query(bookingsQuery, limit(itemsPerPage));
+      }
     } else {
       bookingsQuery = query(bookingsQuery, limit(itemsPerPage));
     }
 
     const snapshot = await getDocs(bookingsQuery);
     const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+    
+    // Create a serializable reference that only includes the ID
+    const serializableLastVisible = lastVisibleDoc ? { id: lastVisibleDoc.id } : null;
 
     // If search term is provided, filter results manually
     // (Note: This is not optimal for large datasets - in production you'd likely use a search service)
@@ -365,7 +450,7 @@ export const getBookings = async (
 
     return {
       bookings,
-      lastVisible: lastVisibleDoc,
+      lastVisible: serializableLastVisible,
     };
   } catch (error) {
     console.error("Error getting bookings:", error);
@@ -546,22 +631,37 @@ export const addPayment = async (
   payment: Omit<PaymentDetails, "id">
 ): Promise<PaymentDetails> => {
   try {
+    console.log("Adding payment:", JSON.stringify(payment));
     // Add payment record
     const paymentsRef = collection(db, "booking_payments");
+    
+    // Ensure date is properly converted to Timestamp
+    let dateTimestamp;
+    console.log("Payment date type:", typeof payment.date);
+    
+    // Convert string date to Timestamp
+    if (typeof payment.date === 'string') {
+      const dateObj = new Date(payment.date);
+      console.log("Converted payment date to:", dateObj);
+      dateTimestamp = Timestamp.fromDate(dateObj);
+    } else {
+      // Fallback to current date
+      console.log("Using current date for payment");
+      dateTimestamp = Timestamp.fromDate(new Date());
+    }
+    
     const paymentData = {
       booking_id: payment.bookingId,
       amount: payment.amount,
       method: payment.method,
       status: payment.status,
       transaction_id: payment.transactionId || "",
-      date:
-        payment.date instanceof Date
-          ? Timestamp.fromDate(payment.date)
-          : Timestamp.fromDate(new Date(payment.date)),
+      date: dateTimestamp,
       notes: payment.notes || "",
       created_at: serverTimestamp(),
     };
 
+    console.log("Final payment data:", paymentData);
     const paymentDocRef = await addDoc(paymentsRef, paymentData);
 
     // Update booking total paid and payment status
@@ -608,6 +708,7 @@ export const getBookingPayments = async (
   bookingId: string
 ): Promise<PaymentDetails[]> => {
   try {
+    console.log("Getting payments for booking:", bookingId);
     const paymentsRef = collection(db, "booking_payments");
     const paymentsQuery = query(
       paymentsRef,
@@ -616,11 +717,15 @@ export const getBookingPayments = async (
     );
 
     const snapshot = await getDocs(paymentsQuery);
+    console.log(`Found ${snapshot.size} payments`);
 
     return snapshot.docs.map((doc) => {
       const data = doc.data();
       // Convert date to string if it's null to avoid type error
       const paymentDate = safeToDate(data.date);
+      console.log("Payment date:", paymentDate);
+      const dateString = paymentDate ? paymentDate.toISOString() : new Date().toISOString();
+      
       return {
         id: doc.id,
         bookingId: data.booking_id,
@@ -628,7 +733,7 @@ export const getBookingPayments = async (
         method: data.method,
         status: data.status,
         transactionId: data.transaction_id,
-        date: paymentDate || new Date(), // Default to current date if null
+        date: dateString,
         notes: data.notes,
       };
     });
@@ -680,10 +785,11 @@ export const getPackageById = async (id: string): Promise<Package | null> => {
         bathrooms: data.baths,
         bedrooms: data.beds,
         guestAmount: data.guest_amount,
-        checkInDate: checkInDate || new Date(),
-        checkOutDate: checkOutDate || new Date(),
-        checkInTime: checkInTime || new Date(),
-        checkOutTime: checkOutTime || new Date(),
+        salesCount: data.sales_count || 0,
+        checkInDate: (checkInDate || new Date()).toISOString(),
+        checkOutDate: (checkOutDate || new Date()).toISOString(),
+        checkInTime: (checkInTime || new Date()).toISOString(),
+        checkOutTime: (checkOutTime || new Date()).toISOString(),
         agent: data.agent,
         createdAt: createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: updatedAt?.toISOString() || new Date().toISOString(),
@@ -733,7 +839,7 @@ export const getAgentPackages = async (
         console.log("Package data:", { id: docSnapshot.id, ...data });
 
         // Handle both old and new flight info structures
-        let flightInfoData = null;
+        let flightInfoData = undefined;
         if (data.flight_info) {
           if (typeof data.flight_info === "string") {
             // Old structure - fetch from separate document
@@ -817,10 +923,11 @@ export const getAgentPackages = async (
           bathrooms: data.baths,
           bedrooms: data.beds,
           guestAmount: data.guest_amount,
-          checkInDate: checkInDate || new Date(),
-          checkOutDate: checkOutDate || new Date(),
-          checkInTime: checkInTime || new Date(),
-          checkOutTime: checkOutTime || new Date(),
+          salesCount: data.sales_count || 0,
+          checkInDate: (checkInDate || new Date()).toISOString(),
+          checkOutDate: (checkOutDate || new Date()).toISOString(),
+          checkInTime: (checkInTime || new Date()).toISOString(),
+          checkOutTime: (checkOutTime || new Date()).toISOString(),
           flightInfo: flightInfoData,
           agent: data.agent,
           createdAt: createdAt?.toISOString() || new Date().toISOString(),

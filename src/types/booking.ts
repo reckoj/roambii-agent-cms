@@ -7,8 +7,8 @@ export interface Booking {
   packageId: string;
   packageName: string;
   agentId: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   price: number;
   totalPaid: number;
   balance: number;
@@ -17,14 +17,14 @@ export interface Booking {
   notes?: string;
   paymentMethod?: string;
   paymentStatus: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BookingFilter {
   status?: string;
-  startDate?: Date;
-  endDate?: Date;
+  startDate?: string;
+  endDate?: string;
   searchTerm?: string;
   clientId?: string;
   packageId?: string;
@@ -49,6 +49,6 @@ export interface PaymentDetails {
   method: string;
   status: "successful" | "failed" | "pending";
   transactionId?: string;
-  date: Date | string;
+  date: string;
   notes?: string;
 }

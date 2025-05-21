@@ -17,6 +17,11 @@ import {
 } from "@/lib/booking-service";
 import { DocumentSnapshot } from "firebase/firestore";
 
+// Serializable lastVisible interface
+interface SerializableDocRef {
+  id: string;
+}
+
 interface BookingState {
   bookings: Booking[];
   selectedBooking: Booking | null;
@@ -26,7 +31,7 @@ interface BookingState {
   loadingStats: boolean;
   loadingPayments: boolean;
   error: string | null;
-  lastVisible: DocumentSnapshot | null;
+  lastVisible: SerializableDocRef | null;
   hasMore: boolean;
   filters: BookingFilter;
 }
@@ -59,7 +64,7 @@ export const fetchBookingsAsync = createAsyncThunk(
     }: {
       agentId: string;
       filters?: BookingFilter;
-      lastVisible?: DocumentSnapshot | null;
+      lastVisible?: SerializableDocRef | null;
       reset?: boolean;
     },
     { rejectWithValue }

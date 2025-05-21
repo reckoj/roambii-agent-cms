@@ -26,7 +26,7 @@ export default function PackagesPage() {
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
+  const [lastVisible, setLastVisible] = useState<{id: string} | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggleFeaturedLoading, setToggleFeaturedLoading] = useState<

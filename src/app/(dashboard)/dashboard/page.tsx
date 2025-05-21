@@ -15,7 +15,10 @@ import {
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { RootState } from "@/lib/redux/store";
-import { fetchBookingStatsAsync, fetchBookingsAsync } from "@/lib/redux/slices/bookingSlice";
+import {
+  fetchBookingStatsAsync,
+  fetchBookingsAsync,
+} from "@/lib/redux/slices/bookingSlice";
 import Link from "next/link";
 import {
   Chart as ChartJS,
@@ -40,7 +43,7 @@ import { getAgentRevenueStats } from "@/lib/revenue-service";
 import { setPackages } from "@/lib/redux/slices/packageSlice";
 import { AnyAction } from "redux";
 import { Package } from "@/types/package";
-import AgentProfileCard from "@/components/AgentProfileCard";
+// import AgentProfileCard from "@/components/AgentProfileCard";
 
 // Register ChartJS components
 ChartJS.register(
@@ -99,19 +102,19 @@ type StatsCard = {
 // Add a helper function to the top of the component
 const serializeDates = (obj: any, seen = new WeakMap<object, any>()): any => {
   // Handle null or non-objects
-  if (!obj || typeof obj !== 'object') return obj;
-  
+  if (!obj || typeof obj !== "object") return obj;
+
   // Check for circular references
   if (seen.has(obj)) return seen.get(obj);
-  
+
   // Handle Date objects directly
   if (obj instanceof Date) {
     return obj.toISOString();
   }
-  
+
   // Create a shallow copy that Immer can handle
   let result: any;
-  
+
   // For arrays, map over each element
   if (Array.isArray(obj)) {
     result = [];
@@ -121,21 +124,21 @@ const serializeDates = (obj: any, seen = new WeakMap<object, any>()): any => {
     }
     return result;
   }
-  
+
   // For objects, create a new object and process each property
   result = {};
   seen.set(obj, result);
-  
+
   // Only include serializable properties
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       const value = obj[key];
-      if (typeof value !== 'function' && key !== '__proto__') {
+      if (typeof value !== "function" && key !== "__proto__") {
         result[key] = serializeDates(value, seen);
       }
     }
   }
-  
+
   return result;
 };
 
@@ -171,31 +174,46 @@ export default function DashboardPage() {
   const [monthlyBookingsData, setMonthlyBookingsData] = useState<any>(null);
 
   // Add a state for package booking data
-  const [packageBookingData, setPackageBookingData] = useState<Record<string, { count: number, revenue: number, lastMonth: { count: number, revenue: number } }>>({});
+  const [packageBookingData, setPackageBookingData] = useState<
+    Record<
+      string,
+      {
+        count: number;
+        revenue: number;
+        lastMonth: { count: number; revenue: number };
+      }
+    >
+  >({});
 
   // Define helper functions before the main effect
   const loadAgentPackages = async () => {
     if (!agent) return;
-    
+
     try {
       setPackagesLoading(true);
       const result = await getAgentPackages(agent.id);
-      console.log(`Loaded ${result.packages.length} packages for agent:`, 
-        result.packages.map(p => ({ name: p.name, featured: p.isFeatured, id: p.id })));
-      
+      console.log(
+        `Loaded ${result.packages.length} packages for agent:`,
+        result.packages.map((p) => ({
+          name: p.name,
+          featured: p.isFeatured,
+          id: p.id,
+        }))
+      );
+
       // Serialize dates in packages to fix Redux errors
-      const serializedPackages = result.packages.map(pkg => {
+      const serializedPackages = result.packages.map((pkg) => {
         // Create a simplified package object with only needed properties
         const simplifiedPackage = {
           id: pkg.id,
           name: pkg.name,
-          description: pkg.description || '',
+          description: pkg.description || "",
           price: pkg.price || 0,
-          type: pkg.type || '',
+          type: pkg.type || "",
           image: pkg.image || null,
           rating: pkg.rating || 0,
           allinclusive: pkg.allinclusive || false,
-          roomType: pkg.roomType || '',
+          roomType: pkg.roomType || "",
           amenities: Array.isArray(pkg.amenities) ? [...pkg.amenities] : [],
           isFeatured: pkg.isFeatured || false,
           bathrooms: pkg.bathrooms || 0,
@@ -206,20 +224,26 @@ export default function DashboardPage() {
           checkOutDate: new Date().toISOString(),
           checkInTime: new Date().toISOString(),
           checkOutTime: new Date().toISOString(),
-          agent: pkg.agent ? {
-            id: pkg.agent.id,
-            name: pkg.agent.name,
-            avatar: pkg.agent.avatar || null
-          } : null,
-          createdAt: pkg.createdAt ? new Date(pkg.createdAt).toISOString() : new Date().toISOString(),
-          updatedAt: pkg.updatedAt ? new Date(pkg.updatedAt).toISOString() : new Date().toISOString(),
+          agent: pkg.agent
+            ? {
+                id: pkg.agent.id,
+                name: pkg.agent.name,
+                avatar: pkg.agent.avatar || null,
+              }
+            : null,
+          createdAt: pkg.createdAt
+            ? new Date(pkg.createdAt).toISOString()
+            : new Date().toISOString(),
+          updatedAt: pkg.updatedAt
+            ? new Date(pkg.updatedAt).toISOString()
+            : new Date().toISOString(),
         };
-        
+
         return simplifiedPackage;
       });
-      
+
       console.log("Serialized packages for Redux:", serializedPackages.length);
-      
+
       // Store these packages in Redux
       dispatch(setPackages(serializedPackages as unknown as Package[]));
 
@@ -235,7 +259,7 @@ export default function DashboardPage() {
   // Fetch revenue stats
   const fetchRevenueStats = async () => {
     if (!agent) return;
-    
+
     try {
       setLoadingRevenue(true);
       const stats = await getAgentRevenueStats(agent.id);
@@ -250,7 +274,7 @@ export default function DashboardPage() {
   // Fetch client count
   const fetchClientCount = async () => {
     if (!agent) return;
-    
+
     try {
       setClientsLoading(true);
       const clients = await getAgentClientsFromBookings(agent.id);
@@ -268,7 +292,7 @@ export default function DashboardPage() {
     const fetchDashboardData = () => {
       if (agent) {
         console.log("Fetching dashboard data for agent:", agent.id);
-        
+
         // Fetch booking stats
         dispatch(fetchBookingStatsAsync(agent.id))
           .then((action) => {
@@ -287,47 +311,63 @@ export default function DashboardPage() {
           });
 
         // Fetch bookings for package performance calculation
-        dispatch(fetchBookingsAsync({ 
-          agentId: agent.id, 
-          reset: true,
-        })).then(result => {
+        dispatch(
+          fetchBookingsAsync({
+            agentId: agent.id,
+            reset: true,
+          })
+        ).then((result) => {
           console.log("Bookings loaded for performance calculation");
         });
-        
+
         // Fetch packages directly
         loadAgentPackages();
         fetchRevenueStats();
         fetchClientCount();
       }
     };
-    
+
     fetchDashboardData();
-    
+
     // Set up visibility listener to refresh data when tab becomes active
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         console.log("Tab became visible, refreshing dashboard data");
         fetchDashboardData();
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [agent, dispatch]);
 
   // Generate real package performance data when packages and bookings are available
   useEffect(() => {
     if (!packages?.length) {
-      console.log(`Missing data for package performance: Packages: ${packages?.length}`);
+      console.log(
+        `Missing data for package performance: Packages: ${packages?.length}`
+      );
       return;
     }
-    
-    console.log("Generating package performance data from", packages.length, "packages");
-    console.log("Packages detail:", packages.map(p => ({ id: p.id, name: p.name, isFeatured: p.isFeatured, price: p.price })));
-    
+
+    console.log(
+      "Generating package performance data from",
+      packages.length,
+      "packages"
+    );
+    console.log(
+      "Packages detail:",
+      packages.map((p) => ({
+        id: p.id,
+        name: p.name,
+        isFeatured: p.isFeatured,
+        price: p.price,
+      }))
+    );
+
     // Create a map to organize package performance data
     interface PackageStat {
       id: string;
@@ -338,13 +378,17 @@ export default function DashboardPage() {
       isFeatured: boolean;
       agentId: string; // Add agentId for filtering
     }
-    
+
     const packageStats: Record<string, PackageStat> = {};
-    
+
     // Initialize with all packages, using the salesCount field
-    packages.forEach(pkg => {
-      console.log(`Package ${pkg.name} has salesCount: ${pkg.salesCount || 0}, featured: ${pkg.isFeatured}`);
-      
+    packages.forEach((pkg) => {
+      console.log(
+        `Package ${pkg.name} has salesCount: ${
+          pkg.salesCount || 0
+        }, featured: ${pkg.isFeatured}`
+      );
+
       // Only include packages from the current agent
       if (pkg.agent?.id === agent?.id) {
         packageStats[pkg.id] = {
@@ -354,36 +398,49 @@ export default function DashboardPage() {
           revenue: (pkg.salesCount || 0) * pkg.price, // Calculate revenue based on sales count
           image: pkg.image || null,
           isFeatured: pkg.isFeatured || false,
-          agentId: pkg.agent?.id || '',
+          agentId: pkg.agent?.id || "",
         };
       }
     });
-    
+
     // If we have bookings available, we can use them to refine revenue calculations
     // (in case the price changed after some sales)
     if (bookings?.length) {
-      console.log("Using", bookings.length, "bookings to refine revenue calculations");
-      
+      console.log(
+        "Using",
+        bookings.length,
+        "bookings to refine revenue calculations"
+      );
+
       // Update revenue with booking data while preserving the salesCount
-      bookings.forEach(booking => {
+      bookings.forEach((booking) => {
         // Only process bookings for the current agent's packages
         if (booking.agentId !== agent?.id) return;
-        
+
         let packageIdToUse = booking.packageId;
-        
+
         // Check if package exists in our list
         if (!packageStats[packageIdToUse]) {
           // Try to find the package by name matching
           const packageName = booking.packageName;
           if (packageName) {
-            const matchingPackage = packages.find(p => 
-              p.name.toLowerCase() === packageName.toLowerCase() && p.agent?.id === agent?.id
+            const matchingPackage = packages.find(
+              (p) =>
+                p.name.toLowerCase() === packageName.toLowerCase() &&
+                p.agent?.id === agent?.id
             );
             if (matchingPackage) {
-              console.log("Found package by name instead of ID:", matchingPackage.name);
+              console.log(
+                "Found package by name instead of ID:",
+                matchingPackage.name
+              );
               packageIdToUse = matchingPackage.id;
             } else {
-              console.log("Package not found by ID or name:", packageIdToUse, packageName);
+              console.log(
+                "Package not found by ID or name:",
+                packageIdToUse,
+                packageName
+              );
               return;
             }
           } else {
@@ -391,24 +448,33 @@ export default function DashboardPage() {
             return;
           }
         }
-        
+
         // Update revenue based on actual booking prices
         packageStats[packageIdToUse].revenue += booking.price || 0;
       });
     }
-    
+
     // Convert to array and sort by revenue
     const sortedPackages = Object.values(packageStats)
-      .filter(pkg => pkg.name && pkg.id) // Make sure we have valid packages
+      .filter((pkg) => pkg.name && pkg.id) // Make sure we have valid packages
       .sort((a, b) => b.revenue - a.revenue);
-    
-    console.log("All sorted packages:", sortedPackages.map(p => `${p.name} (${p.bookingCount} bookings, $${p.revenue}, featured: ${p.isFeatured})`));
-    
+
+    console.log(
+      "All sorted packages:",
+      sortedPackages.map(
+        (p) =>
+          `${p.name} (${p.bookingCount} bookings, $${p.revenue}, featured: ${p.isFeatured})`
+      )
+    );
+
     // Take top packages or all if we have fewer
-    const topPackages = sortedPackages.slice(0, Math.min(5, sortedPackages.length));
-    
+    const topPackages = sortedPackages.slice(
+      0,
+      Math.min(5, sortedPackages.length)
+    );
+
     // Format for display
-    const packageData = topPackages.map(pkg => ({
+    const packageData = topPackages.map((pkg) => ({
       id: pkg.id,
       name: pkg.name,
       bookings: pkg.bookingCount,
@@ -416,9 +482,12 @@ export default function DashboardPage() {
       growth: Math.floor(Math.random() * 30) - 10, // Placeholder for growth calculation
       image: pkg.image,
     }));
-    
-    console.log("Top packages selected for display:", packageData.map(p => p.name));
-    
+
+    console.log(
+      "Top packages selected for display:",
+      packageData.map((p) => p.name)
+    );
+
     // Use dummy data if no real package data is available
     if (packageData.length === 0) {
       setPackagePerformanceData([
@@ -428,14 +497,14 @@ export default function DashboardPage() {
           bookings: 12,
           revenue: 24000,
           growth: 18,
-          image: "https://images.unsplash.com/photo-1540541338287-41700207dee6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8YmVhY2glMjByZXNvcnR8ZW58MHx8MHx8&w=100&q=80",
+          image:
+            "https://images.unsplash.com/photo-1540541338287-41700207dee6?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8YmVhY2glMjByZXNvcnR8ZW58MHx8MHx8&w=100&q=80",
         },
         // Add more dummy data if needed
       ]);
     } else {
       setPackagePerformanceData(packageData);
     }
-    
   }, [packages, bookings, agent]);
 
   // Generate data for additional components and charts
@@ -444,7 +513,7 @@ export default function DashboardPage() {
     const lastMonths = Array.from({ length: 6 }, (_, i) => {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
-      return d.toLocaleString('default', { month: 'short' });
+      return d.toLocaleString("default", { month: "short" });
     }).reverse();
 
     // Revenue chart - use real data from bookingStats
@@ -505,8 +574,12 @@ export default function DashboardPage() {
 
     // Get real upcoming bookings if available
     if (bookings && bookings.length > 0) {
-      console.log("Creating upcoming bookings from", bookings.length, "bookings");
-      
+      console.log(
+        "Creating upcoming bookings from",
+        bookings.length,
+        "bookings"
+      );
+
       // Filter to only include future bookings
       const futureBookings = bookings
         .filter((booking) => {
@@ -530,27 +603,38 @@ export default function DashboardPage() {
       }));
 
       setUpcomingBookingsData(upcomingData);
-      console.log("Upcoming bookings data created:", upcomingData.length, "items");
+      console.log(
+        "Upcoming bookings data created:",
+        upcomingData.length,
+        "items"
+      );
     }
 
     // Real recent bookings from Redux state
     if (bookings && bookings.length > 0) {
       console.log("Creating recent bookings list");
-      
+
       // Get the 5 most recent bookings
-      const recentBookingsData = bookings
-        .slice(0, 5)
-        .map((booking) => ({
-          id: booking.id,
-          client: booking.clientName,
-          package: booking.packageName,
-          date: new Date(booking.createdAt instanceof Date ? booking.createdAt : new Date()).toISOString().split('T')[0],
-          amount: `$${booking.price.toLocaleString()}`,
-          status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1), // Capitalize first letter
-        }));
+      const recentBookingsData = bookings.slice(0, 5).map((booking) => ({
+        id: booking.id,
+        client: booking.clientName,
+        package: booking.packageName,
+        date: new Date(
+          typeof booking.createdAt === 'string' ? booking.createdAt : new Date()
+        )
+          .toISOString()
+          .split("T")[0],
+        amount: `$${booking.price.toLocaleString()}`,
+        status:
+          booking.status.charAt(0).toUpperCase() + booking.status.slice(1), // Capitalize first letter
+      }));
 
       setRecentBookings(recentBookingsData);
-      console.log("Recent bookings list created with", recentBookingsData.length, "bookings");
+      console.log(
+        "Recent bookings list created with",
+        recentBookingsData.length,
+        "bookings"
+      );
     }
 
     // Simulate fetching data
@@ -583,7 +667,9 @@ export default function DashboardPage() {
           name: "Total Revenue",
           value: revenueLoading
             ? "Loading..."
-            : `$${(totalRevenue + (bookingStats?.pendingRevenue || 0)).toLocaleString()}`,
+            : `$${(
+                totalRevenue + (bookingStats?.pendingRevenue || 0)
+              ).toLocaleString()}`,
           prevValue: "$11,300",
           change: statsDelta.revenue,
           changeType: statsDelta.revenueDelta as "increase" | "decrease",
@@ -637,39 +723,45 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadPackagesDirectly = async () => {
       if (!agent) return;
-      
+
       try {
         console.log("Loading packages directly from API");
         setPackagesLoading(true);
-        
+
         // Load packages directly
         const result = await getAgentPackages(agent.id);
-        console.log(`API returned ${result.packages.length} packages`, result.packages);
-        
+        console.log(
+          `API returned ${result.packages.length} packages`,
+          result.packages
+        );
+
         // Create package performance data directly
         if (result.packages.length > 0) {
           // Only include packages from this agent
-          const filteredPackages = result.packages.filter(pkg => pkg.agent?.id === agent.id);
-          
+          const filteredPackages = result.packages.filter(
+            (pkg) => pkg.agent?.id === agent.id
+          );
+
           // Sort packages by price (as a simple proxy for revenue if we don't have sales data)
           const sortedPackages = filteredPackages.sort((a, b) => {
             const aRevenue = (a.salesCount || 0) * a.price;
             const bRevenue = (b.salesCount || 0) * b.price;
             return bRevenue - aRevenue;
           });
-          
-          const directPackageData = sortedPackages
-            .slice(0, 5)
-            .map(pkg => ({
-              id: pkg.id,
-              name: pkg.name,
-              bookings: pkg.salesCount || 0,
-              revenue: (pkg.salesCount || 0) * pkg.price || 0,
-              growth: 0,
-              image: pkg.image || '',
-            }));
-            
-          console.log("Setting package data directly from API:", directPackageData);
+
+          const directPackageData = sortedPackages.slice(0, 5).map((pkg) => ({
+            id: pkg.id,
+            name: pkg.name,
+            bookings: pkg.salesCount || 0,
+            revenue: (pkg.salesCount || 0) * pkg.price || 0,
+            growth: 0,
+            image: pkg.image || "",
+          }));
+
+          console.log(
+            "Setting package data directly from API:",
+            directPackageData
+          );
           setPackagePerformanceData(directPackageData);
           setPackageCount(filteredPackages.length);
         } else {
@@ -681,7 +773,7 @@ export default function DashboardPage() {
         setPackagesLoading(false);
       }
     };
-    
+
     if (!packagePerformanceData.length) {
       loadPackagesDirectly();
     }
@@ -973,11 +1065,11 @@ export default function DashboardPage() {
       </div>
 
       {/* Revenue Insights & Package Performance */}
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-1">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* <div className="lg:col-span-1">
           <AgentProfileCard />
-        </div>
-        
+        </div> */}
+
         <div className="lg:col-span-2 grid grid-cols-1 gap-8 lg:grid-cols-2">
           <RevenueInsights
             totalRevenue={totalRevenue}
@@ -987,12 +1079,16 @@ export default function DashboardPage() {
                 : 0
             }
             topPackageRevenue={
-              revenueStats?.topPackageRevenue?.revenue || 
-              (packagePerformanceData.length > 0 ? packagePerformanceData[0].revenue : 0)
+              revenueStats?.topPackageRevenue?.revenue ||
+              (packagePerformanceData.length > 0
+                ? packagePerformanceData[0].revenue
+                : 0)
             }
             revenueGrowth={
-              revenueStats?.monthlyRevenue?.percentChange || 
-              (bookingStats?.revenueMonth && bookingStats.revenueMonth > 0 ? 15 : 0)
+              revenueStats?.monthlyRevenue?.percentChange ||
+              (bookingStats?.revenueMonth && bookingStats.revenueMonth > 0
+                ? 15
+                : 0)
             }
             loading={loading || loadingStats || loadingRevenue}
           />

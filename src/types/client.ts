@@ -10,7 +10,7 @@ export interface Client {
   status: 'active' | 'inactive';
   totalBookings: number;
   totalSpent: number;
-  lastBookingDate: Date | string;
+  lastBookingDate: string; // ISO date string
   notes?: string;
   preferences?: {
     destinations?: string[];
@@ -20,8 +20,8 @@ export interface Client {
     specialRequirements?: string[];
   };
   bookings?: string[]; // IDs of related bookings
-  createdAt: Date | string;
-  updatedAt: Date | string;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
 }
 
 export interface ClientFilter {
