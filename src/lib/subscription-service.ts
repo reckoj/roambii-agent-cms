@@ -8,6 +8,7 @@ import {
   query,
   where,
   getDocs,
+  Timestamp,
 } from "firebase/firestore";
 import { Subscription, SubscriptionPlan } from "../types/subscription";
 
@@ -209,45 +210,90 @@ export const subscriptionService = {
 
   async checkSubscriptionStatus(userId: string): Promise<boolean> {
     try {
-      console.log('Checking subscription status for user:', userId);
+      console.log('=== Subscription Status Check ===');
+      console.log('User ID:', userId);
       
       // First check if user exists
       const userRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userRef);
       
       if (!userSnap.exists()) {
-        console.log('User document does not exist');
+        console.log('❌ User document does not exist');
         return false;
       }
       
       // Then check subscription
       const subscription = await this.getSubscription(userId);
-      console.log('Subscription details:', {
-        exists: subscription !== null,
-        status: subscription?.status,
-        id: subscription?.id,
-        currentPeriodEnd: subscription?.currentPeriodEnd
-      });
+      console.log('=== Subscription Details ===');
+      console.log('User ID:', userId);
+      console.log('Stripe Customer ID:', subscription?.stripeCustomerId);
+      console.log('Stripe Subscription ID:', subscription?.stripeSubscriptionId);
+      console.log('Raw subscription data:', JSON.stringify(subscription, null, 2));
+      
+      if (!subscription) {
+        console.log('❌ No subscription found for user');
+        return false;
+      }
+
+      console.log('=== Subscription Validation ===');
+      console.log('Status:', subscription.status);
+      console.log('Cancel at Period End:', subscription.cancelAtPeriodEnd);
+      console.log('Current Period Start:', subscription.currentPeriodStart);
+      console.log('Current Period End:', subscription.currentPeriodEnd);
+      console.log('Plan ID:', subscription.planId);
       
       // Check if subscription is active and not expired
-      if (subscription?.status === "active") {
+      if (subscription.status === "active") {
         // Check if subscription has expired
         if (subscription.currentPeriodEnd) {
-          const endDate = new Date(subscription.currentPeriodEnd);
-          const now = new Date();
-          const isExpired = endDate < now;
-          
-          console.log('Subscription period check:', {
-            endDate: endDate.toISOString(),
-            now: now.toISOString(),
-            isExpired
-          });
-          
-          return !isExpired;
+          try {
+            // Handle case where currentPeriodEnd is an object
+            const endDateValue = typeof subscription.currentPeriodEnd === 'object' 
+              ? (subscription.currentPeriodEnd instanceof Timestamp 
+                  ? subscription.currentPeriodEnd.toDate() 
+                  : new Date())
+              : subscription.currentPeriodEnd;
+            
+            const endDate = new Date(endDateValue);
+            
+            // Validate the date
+            if (isNaN(endDate.getTime())) {
+              console.error('Invalid end date:', {
+                original: subscription.currentPeriodEnd,
+                parsed: endDateValue,
+                type: typeof subscription.currentPeriodEnd
+              });
+              return false;
+            }
+            
+            const now = new Date();
+            const isExpired = endDate < now;
+            
+            console.log('Subscription period check:', {
+              endDate: endDate.toISOString(),
+              now: now.toISOString(),
+              isExpired,
+              cancelAtPeriodEnd: subscription.cancelAtPeriodEnd
+            });
+            
+            // If subscription is not expired, it's valid (even if cancelAtPeriodEnd is true)
+            const isValid = !isExpired;
+            console.log('Final subscription validation:', {
+              isExpired,
+              cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+              isValid
+            });
+            
+            return isValid;
+          } catch (error) {
+            console.error('Error processing subscription date:', error);
+            return false;
+          }
         }
         return true;
       }
       
+      console.log('❌ Subscription is not active:', subscription.status);
       return false;
     } catch (error) {
       console.error("Error checking subscription status:", error);

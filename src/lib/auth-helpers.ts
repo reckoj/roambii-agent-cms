@@ -5,6 +5,16 @@ import { signOut } from 'firebase/auth';
 import Cookies from 'js-cookie';
 import { subscriptionService } from './subscription-service';
 
+interface UserData {
+  id: string;
+  email: string;
+  name: string;
+  isAdmin?: boolean;
+  isAgent?: boolean;
+  stripeCustomerId?: string;
+  [key: string]: any;
+}
+
 /**
  * Ensures a user document exists in Firestore for the given user.
  * Creates it if it doesn't exist.
@@ -243,23 +253,58 @@ export async function checkAndStoreSubscriptionStatus(userId: string): Promise<b
     if (localSubscriptionData) {
       try {
         const subscriptionData = JSON.parse(localSubscriptionData);
-        console.log('[Auth Helper] Found subscription data in localStorage:', subscriptionData);
+        console.log('[Auth Helper] Local subscription data:', JSON.stringify(subscriptionData, null, 2));
         
         // Check if subscription is still valid
         if (subscriptionData.status === 'active') {
-          const endDate = new Date(subscriptionData.currentPeriodEnd);
-          const now = new Date();
-          const isExpired = endDate < now;
-          
-          console.log('[Auth Helper] Local subscription validity check:', {
-            endDate: endDate.toISOString(),
-            now: now.toISOString(),
-            isExpired
-          });
-          
-          if (!isExpired) {
-            Cookies.set('hasSubscription', 'true', { expires: 30 });
-            return true;
+          try {
+            // Handle case where currentPeriodEnd is an object or invalid
+            const endDateValue = typeof subscriptionData.currentPeriodEnd === 'object'
+              ? subscriptionData.currentPeriodEnd.toDate?.() || new Date()
+              : subscriptionData.currentPeriodEnd;
+
+            if (!endDateValue) {
+              console.error('[Auth Helper] Missing currentPeriodEnd in local storage');
+              // Continue to check with Firestore
+            } else {
+              const endDate = new Date(endDateValue);
+              // Validate the date
+              if (isNaN(endDate.getTime())) {
+                console.error('[Auth Helper] Invalid end date in local storage:', {
+                  original: subscriptionData.currentPeriodEnd,
+                  parsed: endDateValue,
+                  type: typeof subscriptionData.currentPeriodEnd
+                });
+                // Continue to check with Firestore
+              } else {
+                const now = new Date();
+                const isExpired = endDate < now;
+                
+                console.log('[Auth Helper] Local subscription validation:', {
+                  endDate: endDate.toISOString(),
+                  now: now.toISOString(),
+                  isExpired,
+                  cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd,
+                  status: subscriptionData.status
+                });
+                
+                // If subscription is not expired and not set to cancel, it's valid
+                const isValid = !isExpired && !subscriptionData.cancelAtPeriodEnd;
+                console.log('[Auth Helper] Final local subscription validation:', {
+                  isExpired,
+                  cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd,
+                  isValid
+                });
+                
+                if (isValid) {
+                  Cookies.set('hasSubscription', 'true', { expires: 30 });
+                  return true;
+                }
+              }
+            }
+          } catch (dateError) {
+            console.error('[Auth Helper] Error processing subscription date:', dateError);
+            // Continue to check with Firestore
           }
         }
       } catch (error) {
@@ -290,4 +335,49 @@ export async function checkAndStoreSubscriptionStatus(userId: string): Promise<b
     const subscriptionCookie = Cookies.get('hasSubscription');
     return subscriptionCookie === 'true';
   }
-} 
+}
+
+export const validateSubscription = async (userId: string): Promise<boolean> => {
+  try {
+    console.log('=== Subscription Validation Start ===');
+    console.log('User ID:', userId);
+    
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      console.log('❌ User document does not exist');
+      return false;
+    }
+    
+    const userData = userSnap.data() as UserData;
+    console.log('=== User Details ===');
+    console.log('User ID:', userId);
+    console.log('Stripe Customer ID:', userData.stripeCustomerId);
+    console.log('Is Admin:', userData.isAdmin);
+    console.log('Is Agent:', userData.isAgent);
+    
+    // If user is admin, they have access
+    if (userData.isAdmin) {
+      console.log('✅ User is admin, granting access');
+      return true;
+    }
+    
+    // If user is not an agent, they don't have access
+    if (!userData.isAgent) {
+      console.log('❌ User is not an agent');
+      return false;
+    }
+    
+    // Check subscription status
+    const hasSubscription = await subscriptionService.checkSubscriptionStatus(userId);
+    console.log('=== Subscription Check Result ===');
+    console.log('User ID:', userId);
+    console.log('Has Subscription:', hasSubscription);
+    
+    return hasSubscription;
+  } catch (error) {
+    console.error('Error validating subscription:', error);
+    return false;
+  }
+}; 

@@ -5,10 +5,25 @@ export async function middleware(request: NextRequest) {
   // Check cookies for authentication
   const userIdCookie = request.cookies.get("lastUserId");
   const sessionCookie = request.cookies.get("session");
-  const hasSubscription =
-    request.cookies.get("hasSubscription")?.value === "true";
+  const hasSubscription = request.cookies.get("hasSubscription")?.value === "true";
 
+  // Enhanced debug logging
+  console.log("=== Middleware Request ===");
+  console.log("Path:", request.nextUrl.pathname);
+  console.log("User ID from cookie:", userIdCookie?.value);
+  console.log("Session exists:", !!sessionCookie);
+  console.log("Has Subscription:", hasSubscription);
+
+  // Check authentication - either userId or session is sufficient
   const isAuthenticated = !!userIdCookie || !!sessionCookie;
+  
+  console.log("=== Auth State ===");
+  console.log("Is Authenticated:", isAuthenticated);
+  console.log("Auth Details:", {
+    hasUserId: !!userIdCookie,
+    hasSession: !!sessionCookie,
+    userId: userIdCookie?.value
+  });
 
   // Define route groups
   const isAuthPage =
@@ -28,17 +43,10 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/_next") ||
     request.nextUrl.pathname.startsWith("/static");
 
-  // Debug logging - only in development
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Middleware: Path:", request.nextUrl.pathname);
-    console.log("Middleware: Auth state:", {
-      isAuthenticated,
-      hasSubscription,
-      isAuthPage,
-      isSubscribePage,
-      isDashboardPage,
-    });
-  }
+  console.log("=== Route State ===");
+  console.log("Is Auth Page:", isAuthPage);
+  console.log("Is Subscribe Page:", isSubscribePage);
+  console.log("Is Dashboard Page:", isDashboardPage);
 
   // Allow public routes and API routes without checks
   if (isPublicRoute || isApiRoute) {
@@ -60,11 +68,13 @@ export async function middleware(request: NextRequest) {
 
   // For dashboard routes, check if user is authenticated
   if (isDashboardPage && !isAuthenticated) {
+    console.log("❌ Unauthenticated access attempt to dashboard");
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Redirect unauthenticated users to login
   if (!isAuthPage && !isSubscribePage && !isAuthenticated) {
+    console.log("❌ Unauthenticated access attempt to protected route");
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -75,6 +85,7 @@ export async function middleware(request: NextRequest) {
     !hasSubscription &&
     !request.nextUrl.pathname.startsWith("/subscribe")
   ) {
+    console.log("❌ Authenticated user without subscription trying to access dashboard");
     return NextResponse.redirect(new URL("/subscribe", request.url));
   }
 
