@@ -96,27 +96,32 @@ export const formatDate = (date: any): Date | null => {
 const convertToClient = (doc: DocumentData): Client => {
   const data = doc.data();
   
-  const lastBookingDate = safeToDate(data.last_booking_date);
-  const createdAtDate = safeToDate(data.created_at);
-  const updatedAtDate = safeToDate(data.updated_at);
+  console.log('Converting client document:', {
+    id: doc.id,
+    rawData: data
+  });
+  
+  const lastBookingDate = safeToDate(data.lastBookingDate);
+  const createdAtDate = safeToDate(data.createdAt);
+  const updatedAtDate = safeToDate(data.updatedAt);
   
   // Convert Date objects to ISO strings for Redux storage
   const lastBookingISO = lastBookingDate ? lastBookingDate.toISOString() : new Date().toISOString();
   const createdAtISO = createdAtDate ? createdAtDate.toISOString() : new Date().toISOString();
   const updatedAtISO = updatedAtDate ? updatedAtDate.toISOString() : new Date().toISOString();
   
-  return {
+  const client = {
     id: doc.id,
-    userId: data.user_id,
-    agentId: data.agent_id,
+    userId: data.userId,
+    agentId: data.agentId,
     contactInfo: {
-      name: data.contact_info?.name || "Unknown",
-      email: data.contact_info?.email || "",
-      phone: data.contact_info?.phone || "",
+      name: data.contactInfo?.name || "Unknown",
+      email: data.contactInfo?.email || "",
+      phone: data.contactInfo?.phone || "",
     },
     status: data.status || "active",
-    totalBookings: data.total_bookings || 0,
-    totalSpent: data.total_spent || 0,
+    totalBookings: data.totalBookings || 0,
+    totalSpent: data.totalSpent || 0,
     lastBookingDate: lastBookingISO,
     notes: data.notes || "",
     preferences: data.preferences || {
@@ -130,6 +135,15 @@ const convertToClient = (doc: DocumentData): Client => {
     createdAt: createdAtISO,
     updatedAt: updatedAtISO,
   };
+  
+  console.log('Converted client:', {
+    id: client.id,
+    agentId: client.agentId,
+    userId: client.userId,
+    notes: client.notes
+  });
+  
+  return client;
 };
 
 // Get all clients for an agent
@@ -138,20 +152,23 @@ export const getAgentClients = async (
   filterOptions: ClientFilter = {}
 ): Promise<Client[]> => {
   try {
+    console.log('=== Getting Agent Clients ===');
+    console.log('Agent ID:', agentId);
+    
     const { sortBy = "lastBookingDate", sortDirection = "desc" } = filterOptions;
     
     // Map field names to Firestore fields
     const fieldMap: Record<string, string> = {
-      lastBookingDate: "last_booking_date",
-      totalSpent: "total_spent",
-      totalBookings: "total_bookings",
+      lastBookingDate: "lastBookingDate",
+      totalSpent: "totalSpent", 
+      totalBookings: "totalBookings",
     };
     
-    const sortField = fieldMap[sortBy] || "last_booking_date";
+    const sortField = fieldMap[sortBy] || "lastBookingDate";
     
     let clientsQuery = query(
       collection(db, COLLECTIONS.CLIENTS),
-      where("agent_id", "==", agentId),
+      where("agentId", "==", agentId),
       orderBy(sortField, sortDirection)
     );
     
@@ -162,8 +179,20 @@ export const getAgentClients = async (
       );
     }
     
+    console.log('Executing clients query with agentId field...');
     const snapshot = await getDocs(clientsQuery);
-    const clients = snapshot.docs.map((doc) => convertToClient(doc));
+    console.log(`Found ${snapshot.size} clients in collection`);
+    
+    const clients = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      console.log('Client document:', {
+        id: doc.id,
+        agentId: data.agentId,
+        userId: data.userId,
+        notes: data.notes
+      });
+      return convertToClient(doc);
+    });
     
     return clients;
   } catch (error) {
@@ -199,29 +228,18 @@ export const getAgentClientsFromBookings = async (
     console.log(`Found ${agentIdSnapshot.size} bookings with packageDetails.agent.id`);
     agentIdSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
     
-    // 2. Query by agent_id field
+    // 2. Query by agentId field (updated to match database structure)
     const agentIdDirectQuery = query(
-      bookingsCollection,
-      where("agent_id", "==", agentId)
-    );
-    
-    console.log("Attempting query with agent_id");
-    const agentIdDirectSnapshot = await getDocs(agentIdDirectQuery);
-    console.log(`Found ${agentIdDirectSnapshot.size} bookings with agent_id`);
-    agentIdDirectSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
-    
-    // 3. Query by agentId field
-    const agentIdFieldQuery = query(
       bookingsCollection,
       where("agentId", "==", agentId)
     );
     
     console.log("Attempting query with agentId");
-    const agentIdFieldSnapshot = await getDocs(agentIdFieldQuery);
-    console.log(`Found ${agentIdFieldSnapshot.size} bookings with agentId`);
-    agentIdFieldSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
+    const agentIdDirectSnapshot = await getDocs(agentIdDirectQuery);
+    console.log(`Found ${agentIdDirectSnapshot.size} bookings with agentId`);
+    agentIdDirectSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
     
-    // 4. Query by packageDetails.agentId field
+    // 3. Query by packageDetails.agentId field
     const packageAgentIdQuery = query(
       bookingsCollection,
       where("packageDetails.agentId", "==", agentId)
@@ -231,20 +249,6 @@ export const getAgentClientsFromBookings = async (
     const packageAgentIdSnapshot = await getDocs(packageAgentIdQuery);
     console.log(`Found ${packageAgentIdSnapshot.size} bookings with packageDetails.agentId`);
     packageAgentIdSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
-    
-    // 5. Try with a string version of the ID if it's not already a string
-    if (typeof agentId !== 'string') {
-      const stringAgentId = String(agentId);
-      const stringAgentIdQuery = query(
-        bookingsCollection,
-        where("packageDetails.agent.id", "==", stringAgentId)
-      );
-      
-      console.log("Attempting query with string version of agentId");
-      const stringAgentIdSnapshot = await getDocs(stringAgentIdQuery);
-      console.log(`Found ${stringAgentIdSnapshot.size} bookings with string version of agentId`);
-      stringAgentIdSnapshot.forEach(doc => bookingDocs.set(doc.id, doc));
-    }
     
     const bookingsSnapshot = Array.from(bookingDocs.values());
     console.log(`Combined total of ${bookingsSnapshot.length} unique bookings`);
@@ -265,7 +269,6 @@ export const getAgentClientsFromBookings = async (
         const data = doc.data();
         console.log("Sample booking structure:", JSON.stringify({
           id: doc.id,
-          agent_id: data.agent_id,
           agentId: data.agentId,
           packageDetails: {
             agent: data.packageDetails?.agent,
@@ -287,7 +290,6 @@ export const getAgentClientsFromBookings = async (
       
       // Log relevant parts of the booking data for debugging
       console.log("Booking agent info:", JSON.stringify({
-        agent_id: booking.agent_id,
         agentId: booking.agentId,
         packageAgent: booking.packageDetails?.agent,
         packageAgentId: booking.packageDetails?.agentId
@@ -490,14 +492,14 @@ export const getClientById = async (id: string): Promise<Client | null> => {
       console.log("Creating client from booking data");
       
       // Get dates and convert to ISO strings
-      const bookingDate = safeToDate(bookingData.created_at) || new Date();
+      const bookingDate = safeToDate(bookingData.createdAt) || new Date();
       const bookingDateString = bookingDate.toISOString();
       
       // Create a client object from the booking data
       return {
         id: id,
         userId: userId,
-        agentId: bookingData.agent_id,
+        agentId: bookingData.agentId,
         contactInfo: bookingData.clientRelationship.contactInfo || {
           name: bookingData.travelerInfo?.fullName || "Unknown",
           email: bookingData.travelerInfo?.email || "",
@@ -539,7 +541,7 @@ export const getClientDetailsFromBookings = async (
     // Get all bookings for this user and agent
     const bookingsQuery = query(
       collection(db, COLLECTIONS.BOOKINGS),
-      where("agent_id", "==", agentId),
+      where("agentId", "==", agentId),
       where("clientRelationship.userId", "==", userId)
     );
     
@@ -571,51 +573,38 @@ export const getClientDetailsFromBookings = async (
       updatedAt: clientData.updatedAt
     });
     
-    // Process all bookings to calculate stats and collect info
-    snapshot.forEach(doc => {
+    // Process each booking
+    snapshot.docs.forEach(doc => {
       const booking = doc.data();
-      console.log("Processing booking for client details:", doc.id);
       
-      // Add booking ID to list
-      clientData.bookings?.push(doc.id);
-      
-      // Update total bookings count
-      clientData.totalBookings++;
-      
-      // Update total spent
-      const bookingAmount = booking.payment?.amount || booking.packageDetails?.price || 0;
-      clientData.totalSpent += bookingAmount;
-      
-      // Update contact info from the most complete source
-      if (booking.clientRelationship?.contactInfo?.name) {
-        clientData.contactInfo.name = booking.clientRelationship.contactInfo.name;
-      } else if (booking.travelerInfo?.fullName) {
-        clientData.contactInfo.name = booking.travelerInfo.fullName;
+      // Update contact info if available
+      if (booking.clientRelationship?.contactInfo) {
+        clientData.contactInfo = booking.clientRelationship.contactInfo;
+      } else if (booking.travelerInfo) {
+        clientData.contactInfo = {
+          name: booking.travelerInfo.fullName || clientData.contactInfo.name,
+          email: booking.travelerInfo.email || clientData.contactInfo.email,
+          phone: booking.travelerInfo.phone || clientData.contactInfo.phone,
+        };
       }
       
-      if (booking.clientRelationship?.contactInfo?.email) {
-        clientData.contactInfo.email = booking.clientRelationship.contactInfo.email;
-      } else if (booking.travelerInfo?.email) {
-        clientData.contactInfo.email = booking.travelerInfo.email;
+      // Update notes and preferences
+      if (booking.clientRelationship?.notes) {
+        clientData.notes = booking.clientRelationship.notes;
       }
-      
-      if (booking.clientRelationship?.contactInfo?.phone) {
-        clientData.contactInfo.phone = booking.clientRelationship.contactInfo.phone;
-      } else if (booking.travelerInfo?.phone) {
-        clientData.contactInfo.phone = booking.travelerInfo.phone;
-      }
-      
-      // Update preferences if available
       if (booking.clientRelationship?.preferences) {
         clientData.preferences = booking.clientRelationship.preferences;
       }
       
-      // Update notes if available
-      if (booking.clientRelationship?.notes) {
-        clientData.notes = booking.clientRelationship.notes;
-      }
+      // Add booking to list
+      clientData.bookings?.push(doc.id);
+      clientData.totalBookings++;
       
-      // Extract booking date, ensuring we get a Date object
+      // Add to total spent
+      const bookingAmount = booking.payment?.amount || booking.packageDetails?.price || booking.price || 0;
+      clientData.totalSpent += bookingAmount;
+      
+      // Update last booking date
       let bookingDate: Date;
       if (booking.createdAt instanceof Timestamp) {
         bookingDate = booking.createdAt.toDate();
@@ -625,31 +614,21 @@ export const getClientDetailsFromBookings = async (
         bookingDate = new Date();
       }
       
-      console.log("Booking date extracted:", bookingDate);
+      const bookingDateString = bookingDate.toISOString();
+      const currentLastBooking = new Date(clientData.lastBookingDate);
       
-      // Update last booking date if newer
-      const currentLastBookingDate = new Date(clientData.lastBookingDate);
-      if (bookingDate > currentLastBookingDate) {
-        console.log("Updating last booking date");
-        clientData.lastBookingDate = bookingDate.toISOString();
+      if (bookingDate > currentLastBooking) {
+        clientData.lastBookingDate = bookingDateString;
       }
       
-      // Set created date to earliest booking
-      const currentCreatedAt = new Date(clientData.createdAt);
-      if (bookingDate < currentCreatedAt) {
-        console.log("Updating created date");
-        clientData.createdAt = bookingDate.toISOString();
+      // Update created/updated dates
+      if (bookingDate < new Date(clientData.createdAt)) {
+        clientData.createdAt = bookingDateString;
       }
-      
-      // Set updated date to most recent booking
-      const currentUpdatedAt = new Date(clientData.updatedAt);
-      if (bookingDate > currentUpdatedAt) {
-        console.log("Updating updated date");
-        clientData.updatedAt = bookingDate.toISOString();
-      }
+      clientData.updatedAt = new Date().toISOString();
     });
     
-    console.log("Final client dates:", {
+    console.log("Final client data dates:", {
       lastBookingDate: clientData.lastBookingDate,
       createdAt: clientData.createdAt,
       updatedAt: clientData.updatedAt
@@ -690,6 +669,10 @@ export const updateClientNotes = async (
   notes: string
 ): Promise<void> => {
   try {
+    console.log('=== Updating Client Notes ===');
+    console.log('Client ID:', id);
+    console.log('Notes:', notes);
+    
     // For embedded clients, find the related bookings and update
     if (id.startsWith('embedded-')) {
       const userId = id.replace('embedded-', '');
@@ -705,11 +688,12 @@ export const updateClientNotes = async (
         const bookingRef = doc.ref;
         return updateDoc(bookingRef, {
           "clientRelationship.notes": notes,
-          updated_at: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
       });
       
       await Promise.all(promises);
+      console.log('Updated notes in embedded client bookings');
       return;
     }
     
@@ -717,8 +701,9 @@ export const updateClientNotes = async (
     const clientRef = doc(db, COLLECTIONS.CLIENTS, id);
     await updateDoc(clientRef, {
       notes,
-      updated_at: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
+    console.log('Updated notes in client document');
   } catch (error) {
     console.error("Error updating client notes:", error);
     throw error;
