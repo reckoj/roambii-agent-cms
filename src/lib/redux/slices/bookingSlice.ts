@@ -14,6 +14,7 @@ import {
   getBookingStats,
   addPayment,
   getBookingPayments,
+  updateBookingProgress,
 } from "@/lib/booking-service";
 import { DocumentSnapshot } from "firebase/firestore";
 
@@ -169,6 +170,32 @@ export const fetchBookingPaymentsAsync = createAsyncThunk(
       return await getBookingPayments(bookingId);
     } catch (error) {
       return rejectWithValue("Failed to fetch booking payments");
+    }
+  }
+);
+
+export const updateBookingProgressAsync = createAsyncThunk(
+  "bookings/updateProgress",
+  async (
+    {
+      bookingId,
+      stageId,
+      completed,
+      notes,
+      agentId,
+    }: {
+      bookingId: string;
+      stageId: number;
+      completed: boolean;
+      notes?: string;
+      agentId?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await updateBookingProgress(bookingId, stageId, completed, notes, agentId);
+    } catch (error) {
+      return rejectWithValue("Failed to update booking progress");
     }
   }
 );
@@ -331,6 +358,28 @@ export const bookingSlice = createSlice({
       })
       .addCase(fetchBookingPaymentsAsync.rejected, (state, action) => {
         state.loadingPayments = false;
+        state.error = action.payload as string;
+      })
+
+      // Update booking progress
+      .addCase(updateBookingProgressAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateBookingProgressAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.selectedBooking = action.payload;
+
+        // Update in bookings array if present
+        const index = state.bookings.findIndex(
+          (b) => b.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.bookings[index] = action.payload;
+        }
+      })
+      .addCase(updateBookingProgressAsync.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload as string;
       });
   },

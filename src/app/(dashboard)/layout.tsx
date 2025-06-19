@@ -35,7 +35,7 @@ type NavItem = {
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { name: "Packages", href: "/packages", icon: ShoppingBagIcon },
-  { name: "Bookings", href: "/bookings", icon: CalendarIcon },
+  // { name: "Bookings", href: "/bookings", icon: CalendarIcon },
   {
     name: "Itineraries",
     href: "/itineraries",

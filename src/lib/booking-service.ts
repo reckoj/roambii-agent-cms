@@ -3,8 +3,10 @@ import {
   BookingFilter,
   BookingStats,
   PaymentDetails,
+  BookingProgress,
 } from "@/types/booking";
 import { db } from "@/lib/firebase/config";
+import { createInitialProgress, updateProgressStage } from "@/lib/progress-service";
 import {
   collection,
   doc,
@@ -130,6 +132,7 @@ const convertToBooking = (doc: DocumentData): Booking => {
     paymentStatus: data.payment_status || "unpaid",
     createdAt: createdAtISO,
     updatedAt: updatedAtISO,
+    progress: data.progress || undefined,
   };
 };
 
@@ -171,6 +174,9 @@ export const createBooking = async (
       endDateTimestamp = Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() + 7)));
     }
 
+    // Create initial progress tracking
+    const initialProgress = createInitialProgress(bookingData.agentId);
+
     // Prepare data for Firestore
     const newBooking = {
       client_id: bookingData.clientId,
@@ -191,6 +197,7 @@ export const createBooking = async (
       notes: bookingData.notes || "",
       payment_method: bookingData.paymentMethod || "",
       payment_status: bookingData.paymentStatus || "unpaid",
+      progress: initialProgress,
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
     };
@@ -1043,6 +1050,62 @@ export const getUserBookings = async (userId: string): Promise<Booking[]> => {
     return bookings;
   } catch (error) {
     console.error("Error getting user bookings:", error);
+    throw error;
+  }
+};
+
+// Update booking progress
+export const updateBookingProgress = async (
+  bookingId: string,
+  stageId: number,
+  completed: boolean,
+  notes?: string,
+  agentId?: string
+): Promise<Booking> => {
+  try {
+    const bookingRef = doc(db, "bookings", bookingId);
+    const bookingSnapshot = await getDoc(bookingRef);
+    
+    if (!bookingSnapshot.exists()) {
+      throw new Error("Booking not found");
+    }
+
+    const currentBooking = convertToBooking(bookingSnapshot);
+    
+    // If no progress exists, create initial progress
+    let currentProgress = currentBooking.progress;
+    if (!currentProgress) {
+      currentProgress = createInitialProgress(agentId || currentBooking.agentId);
+    }
+
+    // Update the progress
+    const updatedProgress = updateProgressStage(
+      currentProgress,
+      stageId,
+      completed,
+      notes,
+      agentId
+    );
+
+    // Update the document - filter out undefined values
+    const updateData: any = {
+      progress: updatedProgress,
+      updated_at: serverTimestamp(),
+    };
+
+    // Clean the progress object to remove any undefined values
+    const cleanProgress = JSON.parse(JSON.stringify(updatedProgress));
+
+    await updateDoc(bookingRef, {
+      progress: cleanProgress,
+      updated_at: serverTimestamp(),
+    });
+
+    // Return updated booking
+    const updatedBookingSnapshot = await getDoc(bookingRef);
+    return convertToBooking(updatedBookingSnapshot);
+  } catch (error) {
+    console.error("Error updating booking progress:", error);
     throw error;
   }
 };

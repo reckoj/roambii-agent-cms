@@ -600,6 +600,7 @@ export default function DashboardPage() {
         startDate: new Date(booking.startDate),
         endDate: new Date(booking.endDate),
         status: booking.status,
+        progress: booking.progress,
       }));
 
       setUpcomingBookingsData(upcomingData);
@@ -1121,7 +1122,11 @@ export default function DashboardPage() {
 
         {/* Upcoming Bookings */}
         <div className="lg:col-span-1">
-          <UpcomingBookings bookings={upcomingBookingsData} loading={loading} />
+                      <UpcomingBookings 
+              bookings={upcomingBookingsData} 
+              loading={loading} 
+              agentId={agent?.id}
+            />
         </div>
       </div>
 

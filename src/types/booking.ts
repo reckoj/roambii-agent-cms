@@ -19,6 +19,7 @@ export interface Booking {
   paymentStatus: string;
   createdAt: string;
   updatedAt: string;
+  progress?: BookingProgress;
 }
 
 export interface BookingFilter {
@@ -51,4 +52,19 @@ export interface PaymentDetails {
   transactionId?: string;
   date: string;
   notes?: string;
+}
+
+export interface BookingProgress {
+  currentStage: number; // 0-2 for the 3 stages
+  stages: ProgressStage[];
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ProgressStage {
+  id: number;
+  name: string;
+  completed: boolean;
+  notes?: string;
+  completedAt?: string;
 }

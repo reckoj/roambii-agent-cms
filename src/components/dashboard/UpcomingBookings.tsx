@@ -1,6 +1,9 @@
 import React from "react";
 import { CalendarIcon, UserIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { BookingProgressBar } from "@/components/booking";
+
+import { BookingProgress } from "@/types/booking";
 
 type BookingData = {
   id: string;
@@ -9,16 +12,19 @@ type BookingData = {
   startDate: Date | string;
   endDate: Date | string;
   status: "pending" | "confirmed" | "cancelled" | "completed";
+  progress?: BookingProgress;
 };
 
 type UpcomingBookingsProps = {
   bookings: BookingData[];
   loading?: boolean;
+  agentId?: string;
 };
 
 const UpcomingBookings: React.FC<UpcomingBookingsProps> = ({
   bookings,
   loading = false,
+  agentId,
 }) => {
   // Format date
   const formatDate = (date: Date | string) => {
@@ -116,12 +122,18 @@ const UpcomingBookings: React.FC<UpcomingBookingsProps> = ({
               <p className="text-sm text-gray-500 mb-1 truncate">
                 {booking.packageName}
               </p>
-              <div className="flex items-center text-xs text-gray-500">
+              <div className="flex items-center text-xs text-gray-500 mb-2">
                 <CalendarIcon className="h-4 w-4 mr-1" />
                 <span>
                   {formatDate(booking.startDate)} -{" "}
                   {formatDate(booking.endDate)}
                 </span>
+              </div>
+              <div className="mt-2">
+                <BookingProgressBar 
+                  progress={booking.progress} 
+                  agentId={agentId}
+                />
               </div>
             </Link>
           ))}
