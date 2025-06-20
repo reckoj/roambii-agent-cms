@@ -54,7 +54,7 @@ export default function LoginPage() {
         });
 
         // Set a cookie for server-side auth checks
-        Cookies.set("lastUserId", user.id, { expires: 7 }); // Expires in 7 days
+        Cookies.set("lastUserId", user.id, { expires: 1 }); // Expires in 1 days
 
         // Check and store subscription status
         const hasSubscription = await checkAndStoreSubscriptionStatus(user.id);
@@ -71,11 +71,11 @@ export default function LoginPage() {
           typeof resultAction.payload === "string"
             ? resultAction.payload
             : "Invalid email or password";
-        setError(errorMessage);
+        setError("Invalid email or password");
       }
     } catch (err: any) {
       // Handle errors without logging to console
-      setError(err.message || "An unexpected error occurred");
+      setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }

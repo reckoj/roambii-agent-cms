@@ -96,6 +96,14 @@ const toISOString = (date: any): string => {
 // Convert Firestore document to Booking type
 const convertToBooking = (doc: DocumentData): Booking => {
   const data = doc.data();
+  
+  console.log("Converting Firestore doc to Booking:", {
+    id: doc.id,
+    data: data,
+    clientName: data.client_name,
+    clientEmail: data.client_email,
+    price: data.price
+  });
 
   // Get dates with fallbacks to ensure we never return null
   const startDateResult = safeToDate(data.start_date);
@@ -248,14 +256,20 @@ export const createBooking = async (
 // Get a booking by ID
 export const getBookingById = async (id: string): Promise<Booking | null> => {
   try {
+    console.log("Fetching booking by ID:", id);
     const bookingRef = doc(db, "bookings", id);
     const bookingDoc = await getDoc(bookingRef);
 
+    console.log("Firestore document exists:", bookingDoc.exists());
     if (!bookingDoc.exists()) {
+      console.log("Booking not found");
       return null;
     }
 
-    return convertToBooking(bookingDoc);
+    console.log("Raw Firestore data:", bookingDoc.data());
+    const converted = convertToBooking(bookingDoc);
+    console.log("Converted booking:", converted);
+    return converted;
   } catch (error) {
     console.error("Error getting booking:", error);
     throw error;

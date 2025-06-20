@@ -23,6 +23,14 @@ export default function BookingDetailPage() {
     (state) => state.bookings
   );
 
+  // Debug logging to see what we're getting
+  console.log("Booking Detail Debug:", {
+    selectedBooking,
+    loading,
+    error,
+    bookingId
+  });
+
   // Remove modal state - we'll use direct click interaction
 
   // Fetch booking details
