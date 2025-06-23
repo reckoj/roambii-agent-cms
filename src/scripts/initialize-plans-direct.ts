@@ -23,7 +23,7 @@ const firebaseConfig = {
 };
 
 console.log("Loading environment variables...");
-console.log("Stripe Price ID:", process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
+console.log("Stripe Premium Price ID:", process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID);
 console.log("Firebase Project ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 
 // Initialize Firebase
@@ -31,12 +31,12 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // Get Stripe price ID from environment variables
-const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
 
 // Check if we have valid price ID
 if (!PRICE_ID) {
   console.error("Error: Missing Stripe price ID in environment variables.");
-  console.error("Please make sure NEXT_PUBLIC_STRIPE_PRICE_ID is set in your .env.local file.");
+  console.error("Please make sure NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID is set in your .env.local file.");
   process.exit(1);
 }
 
@@ -47,20 +47,20 @@ if (!PRICE_ID.startsWith('price_')) {
   process.exit(1);
 }
 
-// Single subscription plan with real Stripe price ID
+// Single premium subscription plan with real Stripe price ID
 const PLAN = {
-  id: "standard",
-  name: "Standard Plan",
-  description: "Complete access to our travel agent platform",
+  id: "premium",
+  name: "Premium Plan",
+  description: "Access to the full Roambii travel agent dashboard",
   price: 19.99,
   interval: "month",
   features: [
-    "Create and manage itineraries",
-    "Connect with clients",
-    "Booking management tools",
-    "Customer support",
+    "Unlimited itineraries",
+    "Unlimited bookings",
+    "Customer management",
     "Real-time notifications",
-    "Access to all features"
+    "Analytics dashboard",
+    "Priority support",
   ],
   stripePriceId: PRICE_ID,
   isActive: true

@@ -411,6 +411,29 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Subscription Management Section */}
+          <div className="px-6 py-6 border-t border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Subscription Management
+            </h3>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Premium Plan</h4>
+                  <p className="text-sm text-gray-500">$19.99 per month</p>
+                </div>
+                <div className="space-x-3">
+                  <Link
+                    href="/cancel-subscription"
+                    className="inline-flex items-center px-3 py-2 border border-red-300 text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    Manage Subscription
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         // Edit Form

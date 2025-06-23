@@ -1,4 +1,4 @@
-import { db } from "./firebase/config";
+import { db } from "@/lib/firebase/config";
 import {
   collection,
   doc,
@@ -10,37 +10,47 @@ import {
   getDocs,
   Timestamp,
 } from "firebase/firestore";
-import { Subscription, SubscriptionPlan } from "../types/subscription";
 
-// Default subscription plans without Stripe price IDs
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  interval: string;
+  features: string[];
+  isActive: boolean;
+  stripePriceId: string;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  planId: string;
+  status: "active" | "canceled" | "past_due" | "unpaid";
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Single premium subscription plan
 const DEFAULT_PLANS: Omit<SubscriptionPlan, "stripePriceId">[] = [
-  {
-    id: "basic",
-    name: "Basic Plan",
-    description: "Perfect for individual travel agents",
-    price: 19.99,
-    interval: "month",
-    features: [
-      "Up to 50 itineraries",
-      "Basic customer support",
-      "Standard booking management",
-      "Email notifications",
-    ],
-    isActive: true,
-  },
   {
     id: "premium",
     name: "Premium Plan",
-    description: "Ideal for growing travel agencies",
-    price: 99.99,
+    description: "Access to the full Roambii travel agent dashboard",
+    price: 19.99,
     interval: "month",
     features: [
       "Unlimited itineraries",
-      "Priority customer support",
-      "Advanced booking management",
+      "Unlimited bookings",
+      "Customer management",
       "Real-time notifications",
-      "Custom branding",
       "Analytics dashboard",
+      "Priority support",
     ],
     isActive: true,
   },
@@ -63,29 +73,26 @@ export const subscriptionService = {
       const existingPlans = await getDocs(plansRef);
 
       if (existingPlans.empty) {
-        // Validate Stripe price IDs
-        const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID;
+        // Validate Stripe price ID
         const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
 
-        if (!basicPriceId || !premiumPriceId) {
+        if (!premiumPriceId) {
           throw new Error(
-            "Stripe price IDs are not configured. Please check your environment variables."
+            "Stripe price ID is not configured. Please set NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID in your environment variables."
           );
         }
 
-        // Add default plans with Stripe price IDs
-        const plansWithPriceIds = DEFAULT_PLANS.map((plan, index) => ({
-          ...plan,
-          stripePriceId: index === 0 ? basicPriceId : premiumPriceId,
-        }));
+        // Add premium plan with Stripe price ID
+        const planWithPriceId = {
+          ...DEFAULT_PLANS[0],
+          stripePriceId: premiumPriceId,
+        };
 
-        for (const plan of plansWithPriceIds) {
-          await setDoc(doc(plansRef, plan.id), plan);
-        }
-        console.log("Subscription plans initialized");
+        await setDoc(doc(plansRef, planWithPriceId.id), planWithPriceId);
+        console.log("Subscription plan initialized");
       }
     } catch (error) {
-      console.error("Error initializing subscription plans:", error);
+      console.error("Error initializing subscription plan:", error);
       throw error;
     }
   },
@@ -169,7 +176,7 @@ export const subscriptionService = {
 
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     try {
-      // Initialize plans if they don't exist
+      // Initialize plan if it doesn't exist
       await this.initializeSubscriptionPlans();
 
       const plansRef = collection(db, "subscriptionPlans");
@@ -249,8 +256,8 @@ export const subscriptionService = {
           try {
             // Handle case where currentPeriodEnd is an object
             const endDateValue = typeof subscription.currentPeriodEnd === 'object' 
-              ? (subscription.currentPeriodEnd instanceof Timestamp 
-                  ? subscription.currentPeriodEnd.toDate() 
+              ? (subscription.currentPeriodEnd && 'toDate' in subscription.currentPeriodEnd
+                  ? (subscription.currentPeriodEnd as any).toDate() 
                   : new Date())
               : subscription.currentPeriodEnd;
             
@@ -277,38 +284,53 @@ export const subscriptionService = {
             });
             
             // If subscription is not expired, it's valid (even if cancelAtPeriodEnd is true)
-            const isValid = !isExpired;
-            console.log('Final subscription validation:', {
-              isExpired,
-              cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-              isValid
-            });
-            
-            return isValid;
+            if (!isExpired) {
+              console.log('✅ Subscription is active and not expired');
+              return true;
+            } else {
+              console.log('❌ Subscription has expired');
+              return false;
+            }
           } catch (error) {
-            console.error('Error processing subscription date:', error);
+            console.error('Error parsing subscription end date:', error);
             return false;
           }
+        } else {
+          console.log('✅ Subscription is active (no end date)');
+          return true;
         }
-        return true;
+      } else {
+        console.log(`❌ Subscription status is not active: ${subscription.status}`);
+        return false;
       }
-      
-      console.log('❌ Subscription is not active:', subscription.status);
-      return false;
     } catch (error) {
       console.error("Error checking subscription status:", error);
       return false;
     }
   },
+
+  async updateUserSubscriptionStatus(userId: string, hasSubscription: boolean): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        hasActiveSubscription: hasSubscription,
+        updatedAt: new Date(),
+      });
+      console.log(`Updated user ${userId} subscription status to: ${hasSubscription}`);
+    } catch (error) {
+      console.error("Error updating user subscription status:", error);
+      throw error;
+    }
+  },
 };
 
-// Export a function to manually initialize plans
+// Helper function to initialize plans (for scripts)
 export const initializePlans = async () => {
   try {
     await subscriptionService.initializeSubscriptionPlans();
     console.log("Subscription plans initialized successfully");
   } catch (error) {
-    console.error("Error initializing subscription plans:", error);
+    console.error("Failed to initialize subscription plans:", error);
     throw error;
   }
 };

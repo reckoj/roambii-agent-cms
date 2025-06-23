@@ -1,61 +1,66 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { subscriptionService } from '../lib/subscription-service';
-import { SubscriptionPlan } from '../types/subscription';
-import { useAppSelector, useAppDispatch } from '@/lib/redux/hooks';
-import { ArrowRight, Check, AlertTriangle, LogOut } from 'lucide-react';
-import { logoutUserAsync } from '@/lib/redux/slices/authSlice';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { subscriptionService } from "../lib/subscription-service";
+import { SubscriptionPlan } from "../types/subscription";
+import { useAppSelector, useAppDispatch } from "@/lib/redux/hooks";
+import { ArrowRight, Check, AlertTriangle, LogOut } from "lucide-react";
+import { logoutUserAsync } from "@/lib/redux/slices/authSlice";
+import { useRouter } from "next/navigation";
 
 // Create a default plan if none is found
-const createDefaultPlan = (): SubscriptionPlan => ({
-  id: 'standard',
-  name: 'Standard Plan',
-  description: 'Complete access to our travel agent platform',
-  price: 19.99,
-  interval: 'month',
-  features: [
-    'Create and manage itineraries',
-    'Connect with clients',
-    'Booking management tools',
-    'Customer support',
-    'Real-time notifications',
-    'Access to all features'
-  ],
-  stripePriceId: 'price_id_placeholder',
-  isActive: true
-});
+// const createDefaultPlan = (): SubscriptionPlan => ({
+//   id: "standard",
+//   name: "Standard Plan",
+//   description: "Complete access to our travel agent platform",
+//   price: 19.99,
+//   interval: "month",
+//   features: [
+//     "Create and manage itineraries",
+//     "Connect with clients",
+//     "Booking management tools",
+//     "Customer support",
+//     "Real-time notifications",
+//     "Access to all features",
+//   ],
+//   stripePriceId: "price_id_placeholder",
+//   isActive: true,
+// });
 
 // Initialize Stripe only on the client side - with better error handling
 // Use the PUBLISHABLE key (not the secret key) - it's safe to expose in client code
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
 // For testing only - remove in production
-const testKey = "pk_test_YourStripeTestKeyHere"; 
-const effectiveKey = STRIPE_PUBLISHABLE_KEY || (process.env.NODE_ENV !== 'production' ? testKey : null);
+const testKey = "pk_test_YourStripeTestKeyHere";
+const effectiveKey = STRIPE_PUBLISHABLE_KEY;
 
 let stripePromise: Promise<any> | null = null;
 
 // Only try to load Stripe if we have a key and we're on the client
-if (typeof window !== 'undefined' && effectiveKey) {
+if (typeof window !== "undefined" && effectiveKey) {
   try {
     stripePromise = loadStripe(effectiveKey);
-    console.log('Stripe initialized with publishable key');
+    console.log("Stripe initialized with publishable key");
   } catch (error) {
-    console.error('Failed to initialize Stripe:', error);
+    console.error("Failed to initialize Stripe:", error);
     stripePromise = null;
   }
 } else {
-  console.warn('Stripe publishable key is missing:', { hasKey: !!effectiveKey, isClient: typeof window !== 'undefined' });
+  console.warn("Stripe publishable key is missing:", {
+    hasKey: !!effectiveKey,
+    isClient: typeof window !== "undefined",
+  });
 }
 
 export const SubscriptionPage: React.FC = () => {
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stripeError, setStripeError] = useState<boolean>(stripePromise === null);
+  const [stripeError, setStripeError] = useState<boolean>(
+    stripePromise === null
+  );
   const agent = useAppSelector((state) => state.auth.agent);
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -63,9 +68,9 @@ export const SubscriptionPage: React.FC = () => {
   const handleLogout = async () => {
     try {
       await dispatch(logoutUserAsync());
-      router.push('/login');
+      router.push("/login");
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error("Error logging out:", error);
     }
   };
 
@@ -74,32 +79,43 @@ export const SubscriptionPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        let standardPlan;
-        
+
+        let premiumPlan;
+
         try {
-          const subscriptionPlans = await subscriptionService.getSubscriptionPlans();
-          console.log('Fetched plans:', subscriptionPlans); // Debug log
-          
-          // Get the standard plan
-          standardPlan = subscriptionPlans.find(p => p.id === 'standard') || subscriptionPlans[0];
+          const subscriptionPlans =
+            await subscriptionService.getSubscriptionPlans();
+          console.log("Fetched plans:", subscriptionPlans); // Debug log
+
+          // Get the premium plan
+          premiumPlan =
+            subscriptionPlans.find((p) => p.id === "premium") ||
+            subscriptionPlans[0];
         } catch (error) {
-          console.error('Error fetching subscription plans, using default:', error);
+          console.error(
+            "Error fetching subscription plans, using default:",
+            error
+          );
           // If there's an error fetching plans, use the default
-          standardPlan = createDefaultPlan();
+          // premiumPlan = createDefaultPlan();
         }
-        
-        if (standardPlan) {
+
+        if (premiumPlan) {
           // Make sure the price is always 19.99
-          standardPlan.price = 19.99;
-          setPlan(standardPlan);
+
+          // Ensure the interval is properly typed
+          const planWithCorrectTypes: SubscriptionPlan = {
+            ...premiumPlan,
+            interval: premiumPlan.interval as "month" | "year",
+          };
+          setPlan(planWithCorrectTypes);
         } else {
           // Use default plan as fallback
-          setPlan(createDefaultPlan());
+          // setPlan(createDefaultPlan());
         }
       } catch (error) {
-        console.error('Error in subscription process:', error);
-        setError('Failed to load subscription plan. Please try again later.');
+        console.error("Error in subscription process:", error);
+        setError("Failed to load subscription plan. Please try again later.");
       } finally {
         setLoading(false);
       }
@@ -112,24 +128,31 @@ export const SubscriptionPage: React.FC = () => {
     try {
       if (!stripePromise) {
         setStripeError(true);
-        setError('Stripe payment system is not available. Please contact support.');
+        setError(
+          "Stripe payment system is not available. Please contact support."
+        );
         return;
       }
 
       if (!agent || !agent.id || !agent.email) {
-        throw new Error('You must be logged in to subscribe');
+        throw new Error("You must be logged in to subscribe");
       }
 
       if (!plan) {
-        throw new Error('No subscription plan available');
+        throw new Error("No subscription plan available");
       }
-      
+
       // Store user ID in localStorage for post-redirect recovery
-      localStorage.setItem('lastUserId', agent.id);
+      localStorage.setItem("lastUserId", agent.id);
 
       // Check if the price ID is valid or is our placeholder
-      if (!plan.stripePriceId || plan.stripePriceId === 'price_id_placeholder') {
-        setError('Subscription system is currently unavailable. Please try again later or contact support.');
+      if (
+        !plan.stripePriceId ||
+        plan.stripePriceId === "price_id_placeholder"
+      ) {
+        setError(
+          "Subscription system is currently unavailable. Please try again later or contact support."
+        );
         return;
       }
 
@@ -137,11 +160,13 @@ export const SubscriptionPage: React.FC = () => {
       let stripe;
       try {
         stripe = await stripePromise;
-        if (!stripe) throw new Error('Stripe failed to load');
+        if (!stripe) throw new Error("Stripe failed to load");
       } catch (err) {
-        console.error('Error loading Stripe:', err);
+        console.error("Error loading Stripe:", err);
         setStripeError(true);
-        setError('Cannot connect to payment processor. Please try again later.');
+        setError(
+          "Cannot connect to payment processor. Please try again later."
+        );
         return;
       }
 
@@ -153,7 +178,7 @@ export const SubscriptionPage: React.FC = () => {
       );
 
       if (!response.sessionId) {
-        throw new Error('Failed to create checkout session');
+        throw new Error("Failed to create checkout session");
       }
 
       // Redirect to Stripe Checkout
@@ -162,12 +187,12 @@ export const SubscriptionPage: React.FC = () => {
       });
 
       if (redirectError) {
-        console.error('Error redirecting to checkout:', redirectError);
-        setError('Failed to redirect to checkout. Please try again.');
+        console.error("Error redirecting to checkout:", redirectError);
+        setError("Failed to redirect to checkout. Please try again.");
       }
     } catch (error) {
-      console.error('Error creating subscription:', error);
-      setError('Failed to create subscription. Please try again.');
+      console.error("Error creating subscription:", error);
+      setError("Failed to create subscription. Please try again.");
     }
   };
 
@@ -215,9 +240,15 @@ export const SubscriptionPage: React.FC = () => {
                 <AlertTriangle className="h-5 w-5 text-yellow-400" />
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">Payment System Notice</h3>
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Payment System Notice
+                </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>Our payment system is temporarily undergoing maintenance. You can view plan details, but subscriptions are currently unavailable.</p>
+                  <p>
+                    Our payment system is temporarily undergoing maintenance.
+                    You can view plan details, but subscriptions are currently
+                    unavailable.
+                  </p>
                 </div>
               </div>
             </div>
@@ -239,7 +270,8 @@ export const SubscriptionPage: React.FC = () => {
 
         <div className="text-center mb-12">
           <p className="text-lg text-gray-600 max-w-xl mx-auto">
-            Access all features and take your travel agency to the next level with our comprehensive platform.
+            Access all features and take your travel agency to the next level
+            with our comprehensive platform.
           </p>
         </div>
 
@@ -261,9 +293,7 @@ export const SubscriptionPage: React.FC = () => {
                 /{plan.interval}
               </span>
             </div>
-            <p className="mt-5 text-lg text-teal-100">
-              {plan.description}
-            </p>
+            <p className="mt-5 text-lg text-teal-100">{plan.description}</p>
           </div>
           <div className="px-6 pt-6 pb-8 bg-white sm:p-10">
             <ul className="space-y-4">
@@ -272,9 +302,7 @@ export const SubscriptionPage: React.FC = () => {
                   <div className="flex-shrink-0">
                     <Check className="h-6 w-6 text-teal-500" />
                   </div>
-                  <p className="ml-3 text-base text-gray-700">
-                    {feature}
-                  </p>
+                  <p className="ml-3 text-base text-gray-700">{feature}</p>
                 </li>
               ))}
             </ul>
@@ -284,11 +312,11 @@ export const SubscriptionPage: React.FC = () => {
                 disabled={stripeError}
                 className={`w-full flex items-center justify-center px-6 py-4 text-lg font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
                   stripeError
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 transform transition hover:scale-105'
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 transform transition hover:scale-105"
                 }`}
               >
-                {stripeError ? 'Temporarily Unavailable' : 'Subscribe Now'}
+                {stripeError ? "Temporarily Unavailable" : "Subscribe Now"}
                 {!stripeError && <ArrowRight className="ml-2 h-5 w-5" />}
               </button>
             </div>
@@ -300,4 +328,4 @@ export const SubscriptionPage: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

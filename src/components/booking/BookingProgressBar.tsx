@@ -181,3 +181,4 @@ const BookingProgressBar: React.FC<BookingProgressBarProps> = ({
 };
 
 export default BookingProgressBar;
+ 
