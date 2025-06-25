@@ -17,6 +17,7 @@ export interface Package {
   checkInTime: string;
   checkOutTime: string;
   salesCount: number;
+  stay_link?: string;
   agent: {
     id: string;
     name: string;

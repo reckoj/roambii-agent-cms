@@ -68,6 +68,7 @@ type PackageFormData = {
   checkOutDate: Date;
   checkInTime: Date;
   checkOutTime: Date;
+  stay_link: string;
   agent?: {
     id: string;
     name: string;
@@ -100,6 +101,7 @@ export default function PackageFormPage() {
     checkOutDate: new Date(new Date().setDate(new Date().getDate() + 1)),
     checkInTime: new Date(new Date().setHours(15, 0, 0, 0)),
     checkOutTime: new Date(new Date().setHours(11, 0, 0, 0)),
+    stay_link: "",
   });
 
   const [flightInfo, setFlightInfo] = useState<Package["flightInfo"]>({
@@ -153,6 +155,7 @@ export default function PackageFormPage() {
           checkOutDate: pkg.checkOutDate ? new Date(pkg.checkOutDate) : new Date(),
           checkInTime: pkg.checkInTime ? new Date(pkg.checkInTime) : new Date(),
           checkOutTime: pkg.checkOutTime ? new Date(pkg.checkOutTime) : new Date(),
+          stay_link: pkg.stay_link ?? "",
           agent: pkg.agent,
           id: pkg.id,
         };
@@ -650,24 +653,66 @@ export default function PackageFormPage() {
                   </div>
                 </div>
 
-                {/* Guest Amount */}
-                <div>
-                  <label
-                    htmlFor="guestAmount"
-                    className="block text-base font-medium text-gray-700 mb-2"
-                  >
-                    Travelers
-                  </label>
-                  <input
-                    type="number"
-                    name="guestAmount"
-                    id="guestAmount"
-                    value={formData.guestAmount}
-                    onChange={handleInputChange}
-                    min="1"
-                    placeholder="Enter number of guests"
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
-                  />
+                {/* Travelers, Room Type, and Stay Link Row */}
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                  <div>
+                    <label
+                      htmlFor="guestAmount"
+                      className="block text-base font-medium text-gray-700 mb-2"
+                    >
+                      Travelers
+                    </label>
+                    <input
+                      type="number"
+                      name="guestAmount"
+                      id="guestAmount"
+                      value={formData.guestAmount}
+                      onChange={handleInputChange}
+                      min="1"
+                      placeholder="Enter number of guests"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="roomType"
+                      className="block text-base font-medium text-gray-700 mb-2"
+                    >
+                      Room Type
+                    </label>
+                    <select
+                      name="roomType"
+                      id="roomType"
+                      value={formData.roomType}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
+                    >
+                      {ROOM_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="stay_link"
+                      className="block text-base font-medium text-gray-700 mb-2"
+                    >
+                      Stay Link
+                    </label>
+                    <input
+                      type="text"
+                      name="stay_link"
+                      id="stay_link"
+                      value={formData.stay_link}
+                      onChange={handleInputChange}
+                      placeholder="Enter accommodation link"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
+                    />
+                  </div>
                 </div>
 
                 {/* Description */}
@@ -687,29 +732,6 @@ export default function PackageFormPage() {
                     placeholder="Enter package description"
                     className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
                   />
-                </div>
-
-                {/* Room Type */}
-                <div>
-                  <label
-                    htmlFor="roomType"
-                    className="block text-base font-medium text-gray-700 mb-2"
-                  >
-                    Room Type
-                  </label>
-                  <select
-                    name="roomType"
-                    id="roomType"
-                    value={formData.roomType}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base py-3 px-4 text-gray-900 placeholder-gray-800"
-                  >
-                    {ROOM_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
                 </div>
 
                 {/* All Inclusive */}
