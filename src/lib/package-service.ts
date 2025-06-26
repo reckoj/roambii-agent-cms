@@ -53,8 +53,22 @@ const safeToDate = (timestamp: any): Date | null => {
 const safeCreateDate = (date: any): Date | null => {
   try {
     if (!date) return null;
+    
+    // Handle Date objects
+    if (date instanceof Date) {
+      return date;
+    }
+    
+    // Handle string dates
+    if (typeof date === 'string') {
+      const parsedDate = new Date(date);
+      return isNaN(parsedDate.getTime()) ? null : parsedDate;
+    }
+    
+    // Handle Timestamp objects from Firestore
     const parsedDate = safeToDate(date);
     if (parsedDate) return parsedDate;
+    
     return null;
   } catch (error) {
     console.error("Error creating date for Firestore:", error);
@@ -214,17 +228,87 @@ export const updatePackage = async (
       imageUrl = await getDownloadURL(imageRef);
     }
 
-    const packageWithImage = {
-      ...packageData,
-      banner_image: imageUrl,
+    // Convert frontend Package format to database format
+    const updateData: any = {
+      name: packageData.name,
+      description: packageData.description || "",
+      price: Number(packageData.price) || 0,
+      type: packageData.type || "Hotel",
+      rating: Number(packageData.rating) || 0,
+      is_all_inclusive: packageData.allinclusive || false,
+      room_type: packageData.roomType || "Standard Room",
+      amenities: packageData.amenities || [],
+      is_featured_package: packageData.isFeatured || false,
+      baths: Number(packageData.bathrooms) || 0,
+      beds: Number(packageData.bedrooms) || 0,
+      sleeps: Number(packageData.bedrooms) || 0,
+      guest_amount: Number(packageData.guestAmount) || 1,
+      stay_link: packageData.stay_link || "",
+      check_in_date: safeCreateDate(packageData.checkInDate) || new Date(),
+      check_out_date: safeCreateDate(packageData.checkOutDate) || new Date(),
+      check_in_time: safeCreateDate(packageData.checkInTime) || new Date(),
+      check_out_time: safeCreateDate(packageData.checkOutTime) || new Date(),
       updatedAt: serverTimestamp(),
     };
 
+    // Only update banner_image if we have a value
+    if (imageUrl || packageData.image) {
+      updateData.banner_image = imageUrl || packageData.image;
+    }
+
+    // Handle flight info - always include it, even if empty
+    const hasFlightData = packageData.flightInfo && (
+      packageData.flightInfo.departingFrom || 
+      packageData.flightInfo.arrivingTo || 
+      packageData.flightInfo.returningFrom || 
+      packageData.flightInfo.returningTo ||
+      packageData.flightInfo.departureDate ||
+      packageData.flightInfo.returnDate
+    );
+
+    if (hasFlightData) {
+      updateData.flight_info = {
+        departing_from: packageData.flightInfo?.departingFrom || "",
+        arriving_to: packageData.flightInfo?.arrivingTo || "",
+        returning_from: packageData.flightInfo?.returningFrom || "",
+        returning_to: packageData.flightInfo?.returningTo || "",
+        departing_time: safeCreateDate(packageData.flightInfo?.departingTime),
+        arriving_to_time: safeCreateDate(packageData.flightInfo?.arrivingToTime),
+        returning_from_time: safeCreateDate(packageData.flightInfo?.returningFromTime),
+        returning_to_time: safeCreateDate(packageData.flightInfo?.returningToTime),
+        departure_date: safeCreateDate(packageData.flightInfo?.departureDate),
+        return_date: safeCreateDate(packageData.flightInfo?.returnDate),
+      };
+    } else {
+      // Set empty flight info to avoid undefined
+      updateData.flight_info = {
+        departing_from: "",
+        arriving_to: "",
+        returning_from: "",
+        returning_to: "",
+        departing_time: null,
+        arriving_to_time: null,
+        returning_from_time: null,
+        returning_to_time: null,
+        departure_date: null,
+        return_date: null,
+      };
+    }
+
+    // Add agent info if provided
+    if (packageData.agent) {
+      updateData.agent = packageData.agent;
+      updateData.agentId = packageData.agent.id;
+    }
+
+    console.log("Updating package with data:", updateData);
+
     const packageRef = doc(db, "package_info", id);
-    await updateDoc(packageRef, packageWithImage);
+    await updateDoc(packageRef, updateData);
+    
     return { 
       id, 
-      ...packageWithImage,
+      ...packageData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     } as Package;
