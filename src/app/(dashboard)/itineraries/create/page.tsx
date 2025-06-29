@@ -29,6 +29,8 @@ export default function CreateItineraryPage() {
     new Date(new Date().setDate(new Date().getDate() + 7))
   );
   const [destinations, setDestinations] = useState<string[]>([""]);
+  const [isSelling, setIsSelling] = useState(false);
+  const [itineraryPrice, setItineraryPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // If not authenticated, redirect to login
@@ -86,6 +88,19 @@ export default function CreateItineraryPage() {
       return;
     }
 
+    // Validate price if selling is enabled
+    if (isSelling) {
+      if (!itineraryPrice.trim()) {
+        alert("Please enter a price for the itinerary");
+        return;
+      }
+      const priceValue = parseFloat(itineraryPrice);
+      if (isNaN(priceValue) || priceValue <= 0) {
+        alert("Please enter a valid price");
+        return;
+      }
+    }
+
     // Calculate number of days for day plans
     const numDays = calculateDaysBetween(startDate, endDate);
 
@@ -113,6 +128,8 @@ export default function CreateItineraryPage() {
             startDate,
             endDate,
             userId: agent.id,
+            isSelling,
+            itinerary_price: isSelling ? parseFloat(itineraryPrice) : undefined,
           },
           dayPlans,
         })
@@ -284,6 +301,63 @@ export default function CreateItineraryPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add another destination
               </button>
+            </div>
+
+            {/* Selling Options */}
+            <div className="mb-6">
+              <div className="flex items-center mb-4">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    id="isSelling"
+                    checked={isSelling}
+                    onChange={(e) => setIsSelling(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="isSelling"
+                    className={`flex items-center cursor-pointer w-11 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${
+                      isSelling ? 'bg-teal-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                        isSelling ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </label>
+                </div>
+                <span className="ml-3 text-sm font-medium text-gray-700">
+                  Make this itinerary available for sale
+                </span>
+              </div>
+
+              {isSelling && (
+                <div className="ml-6">
+                  <label
+                    htmlFor="itineraryPrice"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Price *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 text-sm">$</span>
+                    </div>
+                    <input
+                      type="number"
+                      id="itineraryPrice"
+                      value={itineraryPrice}
+                      onChange={(e) => setItineraryPrice(e.target.value)}
+                      placeholder="200"
+                      min="0"
+                      step="0.01"
+                      required={isSelling}
+                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 placeholder-gray-400 text-gray-700"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Trip Summary */}

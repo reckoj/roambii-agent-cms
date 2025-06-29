@@ -7,6 +7,8 @@ export interface Itinerary {
   startDate: Date | string;
   endDate: Date | string;
   userId: string;
+  isSelling?: boolean;
+  itinerary_price?: number;
   sharedWith?: string[];
   createdAt?: Date | string;
   updatedAt?: Date | string;

@@ -67,6 +67,8 @@ export const createItinerary = async (
       ...itinerary,
       startDate: new Date(itinerary.startDate.toString()),
       endDate: new Date(itinerary.endDate.toString()),
+      isSelling: itinerary.isSelling || false,
+      itinerary_price: itinerary.itinerary_price || 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

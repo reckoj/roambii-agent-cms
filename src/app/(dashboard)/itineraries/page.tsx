@@ -220,14 +220,19 @@ export default function ItinerariesPage() {
                       )}
                     </div>
 
-                    <div className="flex flex-col items-end">
-                      <div className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm font-medium mb-2">
+                    <div className="flex flex-col items-end space-y-2">
+                      <div className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm font-medium">
                         {calculateDuration(
                           itinerary.startDate,
                           itinerary.endDate
                         )}
                       </div>
-                      <ChevronRight className="h-5 w-5 text-teal-500 mt-2" />
+                      {itinerary.isSelling && (
+                        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                          For Sale - ${itinerary.itinerary_price}
+                        </div>
+                      )}
+                      <ChevronRight className="h-5 w-5 text-teal-500" />
                     </div>
                   </div>
                 </div>
