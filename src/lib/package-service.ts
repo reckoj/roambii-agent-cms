@@ -122,8 +122,8 @@ export const createPackage = async (
       agentId: agentId,
       agent: {
         id: agentId,
-        name: agentData.name,
-        avatar: agentData.avatar,
+        name: agentData.name || "Unknown Agent",
+        avatar: agentData.avatar || "",
       },
       is_all_inclusive: packageData.allinclusive || false,
       room_type: packageData.roomType || "Standard Room",
@@ -188,7 +188,11 @@ export const createPackage = async (
       checkOutDate: newPackage.check_out_date ? newPackage.check_out_date.toISOString() : new Date().toISOString(),
       checkInTime: newPackage.check_in_time ? newPackage.check_in_time.toISOString() : new Date().toISOString(),
       checkOutTime: newPackage.check_out_time ? newPackage.check_out_time.toISOString() : new Date().toISOString(),
-      agent: newPackage.agent,
+      agent: {
+        id: newPackage.agent.id,
+        name: newPackage.agent.name || "Unknown Agent",
+        avatar: newPackage.agent.avatar || "",
+      },
       flightInfo: {
         id: packageDoc.id,
         departingFrom: packageData.flightInfo?.departingFrom,

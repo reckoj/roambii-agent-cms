@@ -181,7 +181,7 @@ export default function CreateItineraryPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="E.g., Summer Vacation in Europe"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 placeholder-gray-400 text-gray-700"
               />
             </div>
 
@@ -213,7 +213,7 @@ export default function CreateItineraryPage() {
                     startDate={startDate}
                     endDate={endDate}
                     dateFormat="MMMM d, yyyy"
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 text-gray-400"
                   />
                 </div>
               </div>
@@ -237,7 +237,7 @@ export default function CreateItineraryPage() {
                     endDate={endDate}
                     minDate={startDate}
                     dateFormat="MMMM d, yyyy"
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 text-gray-400"
                   />
                 </div>
               </div>
@@ -262,14 +262,14 @@ export default function CreateItineraryPage() {
                           updateDestination(index, e.target.value)
                         }
                         placeholder="E.g., Paris, France"
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 placeholder-gray-400 text-gray-700"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => removeDestination(index)}
                       disabled={destinations.length === 1}
-                      className="ml-2 p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-2 p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed "
                     >
                       <X className="h-5 w-5" />
                     </button>
