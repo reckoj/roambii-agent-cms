@@ -76,6 +76,81 @@ const safeCreateDate = (date: any): Date | null => {
   }
 };
 
+// Define featured package limits (could be moved to config or subscription service later)
+const FEATURED_PACKAGE_LIMITS = {
+  premium: 5, // Premium plan allows 5 featured packages
+  free: 2,    // Free/basic plan allows 2 featured packages
+  default: 3  // Default limit
+};
+
+// Get featured package count for an agent
+export const getFeaturedPackageCount = async (agentId: string): Promise<number> => {
+  try {
+    console.log("Checking featured package count for agent:", agentId);
+    
+    // Query for featured packages by this agent
+    const featuredQuery = query(
+      collection(db, "package_info"),
+      where("agentId", "==", agentId),
+      where("is_featured_package", "==", true)
+    );
+    
+    const featuredSnapshot = await getDocs(featuredQuery);
+    const count = featuredSnapshot.size;
+    
+    console.log(`Agent ${agentId} has ${count} featured packages`);
+    return count;
+  } catch (error) {
+    console.error("Error getting featured package count:", error);
+    return 0;
+  }
+};
+
+// Check if agent can feature more packages
+export const canFeatureMorePackages = async (agentId: string, currentPackageId?: string): Promise<{ canFeature: boolean; currentCount: number; limit: number; message: string }> => {
+  try {
+    const currentCount = await getFeaturedPackageCount(agentId);
+    const limit = FEATURED_PACKAGE_LIMITS.default; // Use default limit for now
+    
+    // If we're updating an existing package that's already featured, don't count it
+    let effectiveCount = currentCount;
+    if (currentPackageId) {
+      const packageRef = doc(db, "package_info", currentPackageId);
+      const packageDoc = await getDoc(packageRef);
+      if (packageDoc.exists() && packageDoc.data()?.is_featured_package) {
+        effectiveCount = currentCount - 1;
+      }
+    }
+    
+    const canFeature = effectiveCount < limit;
+    const remaining = limit - effectiveCount;
+    
+    let message = "";
+    if (!canFeature) {
+      message = `You have reached the maximum limit of ${limit} featured packages. Please unfeature an existing package before featuring a new one.`;
+    } else if (remaining === 1) {
+      message = `You can feature ${remaining} more package.`;
+    } else {
+      message = `You can feature ${remaining} more packages.`;
+    }
+    
+    return {
+      canFeature,
+      currentCount: effectiveCount,
+      limit,
+      message
+    };
+  } catch (error) {
+    console.error("Error checking featured package limit:", error);
+    return {
+      canFeature: false,
+      currentCount: 0,
+      limit: FEATURED_PACKAGE_LIMITS.default,
+      message: "Error checking featured package limit. Please try again."
+    };
+  }
+};
+
 export const createPackage = async (
   packageData: Package,
   agentId: string,
@@ -83,6 +158,17 @@ export const createPackage = async (
 ) => {
   try {
     console.log("Starting package creation for agent:", agentId);
+    console.log("Package isFeatured:", packageData.isFeatured);
+
+    // Check featured package limit if trying to feature this package
+    if (packageData.isFeatured) {
+      console.log("Checking featured package limit...");
+      const limitCheck = await canFeatureMorePackages(agentId);
+      console.log("Limit check result:", limitCheck);
+      if (!limitCheck.canFeature) {
+        throw new Error(limitCheck.message);
+      }
+    }
 
     // First verify if the user is an agent
     const agentRef = doc(db, "agents", agentId);
@@ -128,7 +214,7 @@ export const createPackage = async (
       is_all_inclusive: packageData.allinclusive || false,
       room_type: packageData.roomType || "Standard Room",
       amenities: packageData.amenities || [],
-      is_featured_package: false,
+      is_featured_package: packageData.isFeatured || false,
       baths: Number(packageData.bathrooms) || 0,
       beds: Number(packageData.bedrooms) || 0,
       sleeps: Number(packageData.bedrooms) || 0,
@@ -161,7 +247,8 @@ export const createPackage = async (
       updatedAt: serverTimestamp(),
     };
 
-    console.log("Saving package to Firestore:", newPackage);
+    console.log("Saving package to Firestore with featured status:", newPackage.is_featured_package);
+    console.log("Full package data:", newPackage);
     const packageRef = collection(db, "package_info");
     const packageDoc = await addDoc(packageRef, newPackage);
     console.log("Package created with ID:", packageDoc.id);
@@ -221,6 +308,14 @@ export const updatePackage = async (
   imageFile?: File
 ) => {
   try {
+    // Check featured package limit if trying to feature this package
+    if (packageData.isFeatured && packageData.agent?.id) {
+      const limitCheck = await canFeatureMorePackages(packageData.agent.id, id);
+      if (!limitCheck.canFeature) {
+        throw new Error(limitCheck.message);
+      }
+    }
+
     let imageUrl = packageData.image;
     if (imageFile) {
       const storage = getStorage();
@@ -299,9 +394,13 @@ export const updatePackage = async (
       };
     }
 
-    // Add agent info if provided
+    // Add agent info if provided - sanitize to avoid undefined values
     if (packageData.agent) {
-      updateData.agent = packageData.agent;
+      updateData.agent = {
+        id: packageData.agent.id,
+        name: packageData.agent.name || "",
+        avatar: packageData.agent.avatar || "", // Convert undefined to empty string for consistency
+      };
       updateData.agentId = packageData.agent.id;
     }
 

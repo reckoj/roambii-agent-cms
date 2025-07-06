@@ -325,10 +325,18 @@ export const updateItinerary = async (
       throw new Error("Itinerary not found");
     }
 
+    // Filter out undefined values to prevent Firestore errors
     const updateData: any = {
-      ...updates,
       updatedAt: new Date(),
     };
+
+    // Only add defined fields to updateData
+    Object.keys(updates).forEach((key) => {
+      const value = (updates as any)[key];
+      if (value !== undefined) {
+        updateData[key] = value;
+      }
+    });
 
     // Convert date strings to Date objects if provided
     if (updates.startDate) {
@@ -337,6 +345,11 @@ export const updateItinerary = async (
 
     if (updates.endDate) {
       updateData.endDate = new Date(updates.endDate.toString());
+    }
+
+    // Convert numbers to ensure proper types
+    if (updates.itinerary_price !== undefined) {
+      updateData.itinerary_price = Number(updates.itinerary_price) || 0;
     }
 
     await updateDoc(itineraryRef, updateData);

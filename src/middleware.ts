@@ -5,14 +5,14 @@ export async function middleware(request: NextRequest) {
   // Check cookies for authentication
   const userIdCookie = request.cookies.get("lastUserId");
   const sessionCookie = request.cookies.get("session");
-  const hasSubscription = request.cookies.get("hasSubscription")?.value === "true";
+  const hasSubscriptionCookie = request.cookies.get("hasSubscription")?.value === "true";
 
   // Enhanced debug logging
   console.log("=== Middleware Request ===");
   console.log("Path:", request.nextUrl.pathname);
   console.log("User ID from cookie:", userIdCookie?.value);
   console.log("Session exists:", !!sessionCookie);
-  console.log("Has Subscription:", hasSubscription);
+  console.log("Has Subscription Cookie:", hasSubscriptionCookie);
 
   // Check authentication - either userId or session is sufficient
   const isAuthenticated = !!userIdCookie || !!sessionCookie;
@@ -78,15 +78,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // If authenticated user without subscription tries to access dashboard, redirect to subscribe
-  if (
-    isDashboardPage &&
-    isAuthenticated &&
-    !hasSubscription &&
-    !request.nextUrl.pathname.startsWith("/subscribe")
-  ) {
-    console.log("❌ Authenticated user without subscription trying to access dashboard");
-    return NextResponse.redirect(new URL("/subscribe", request.url));
+  // For authenticated users accessing dashboard, check subscription status
+  if (isDashboardPage && isAuthenticated && !request.nextUrl.pathname.startsWith("/subscribe")) {
+    const userId = userIdCookie?.value;
+    
+    if (!userId) {
+      console.log("❌ No user ID found for authenticated user");
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    
+    // Check subscription status from cookie only
+    // If no subscription cookie, redirect to subscribe page
+    if (!hasSubscriptionCookie) {
+      console.log("❌ No active subscription cookie found, redirecting to subscribe");
+      return NextResponse.redirect(new URL("/subscribe", request.url));
+    } else {
+      console.log("✅ Valid subscription cookie found");
+    }
   }
 
   return NextResponse.next();

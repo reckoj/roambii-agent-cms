@@ -6,6 +6,7 @@ import { useAppSelector } from "@/lib/redux/hooks";
 import {
   getPackageById,
   updatePackage,
+  canFeatureMorePackages,
 } from "@/lib/package-service";
 import { Package } from "@/types/package";
 import { ArrowLeft, Upload, X } from "lucide-react";
@@ -120,6 +121,12 @@ export default function EditPackagePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [featuredLimitInfo, setFeaturedLimitInfo] = useState<{
+    canFeature: boolean;
+    currentCount: number;
+    limit: number;
+    message: string;
+  } | null>(null);
 
   const [showCheckInTime, setShowCheckInTime] = useState(false);
   const [showCheckOutTime, setShowCheckOutTime] = useState(false);
@@ -129,6 +136,24 @@ export default function EditPackagePage() {
       loadPackage();
     }
   }, [packageId]);
+
+  // Check featured package limit when component loads
+  useEffect(() => {
+    if (agent?.id) {
+      checkFeaturedLimit();
+    }
+  }, [agent?.id]);
+
+  const checkFeaturedLimit = async () => {
+    if (!agent?.id) return;
+    
+    try {
+      const limitInfo = await canFeatureMorePackages(agent.id, packageId);
+      setFeaturedLimitInfo(limitInfo);
+    } catch (error) {
+      console.error("Error checking featured limit:", error);
+    }
+  };
 
   const loadPackage = async () => {
     try {
@@ -206,10 +231,23 @@ export default function EditPackagePage() {
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
+    
+    // Only block if trying to enable featured status AND we have limit info AND can't feature more
+    if (name === "isFeatured" && checked && featuredLimitInfo && !featuredLimitInfo.canFeature) {
+      setError(featuredLimitInfo.message);
+      return;
+    }
+    
+    // Update the form data
     setFormData((prev) => ({
       ...prev,
       [name]: checked,
     }));
+    
+    // Clear error if successfully toggling
+    if (error && name === "isFeatured") {
+      setError("");
+    }
   };
 
   const handleAmenityChange = (amenity: string) => {
@@ -861,21 +899,46 @@ export default function EditPackagePage() {
               </div>
 
               {/* Featured Status */}
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="isFeatured"
-                  id="isFeatured"
-                  checked={formData.isFeatured}
-                  onChange={handleCheckboxChange}
-                  className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                />
-                <label
-                  htmlFor="isFeatured"
-                  className="ml-3 block text-base text-gray-700"
-                >
-                  Feature this package
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="isFeatured"
+                    id="isFeatured"
+                    checked={formData.isFeatured}
+                    onChange={handleCheckboxChange}
+                    disabled={!formData.isFeatured && !!featuredLimitInfo && !featuredLimitInfo.canFeature}
+                    className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <label
+                    htmlFor="isFeatured"
+                    className={`ml-3 block text-base ${
+                      !formData.isFeatured && !!featuredLimitInfo && !featuredLimitInfo.canFeature
+                        ? "text-gray-400"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    Feature this package
+                  </label>
+                </div>
+                
+                {/* Featured Package Limit Info */}
+                {featuredLimitInfo && (
+                  <div className="ml-8 text-sm">
+                    {featuredLimitInfo.canFeature ? (
+                      <span className="text-green-600">
+                        ✓ {featuredLimitInfo.message}
+                      </span>
+                    ) : (
+                      <span className="text-red-600">
+                        ⚠ {featuredLimitInfo.message}
+                      </span>
+                    )}
+                    <div className="text-gray-500 mt-1">
+                      Featured packages: {featuredLimitInfo.currentCount}/{featuredLimitInfo.limit}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}

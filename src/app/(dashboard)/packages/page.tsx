@@ -17,6 +17,7 @@ import {
   getAgentPackages,
   deletePackage,
   updatePackage,
+  canFeatureMorePackages,
 } from "@/lib/package-service";
 import { Package } from "@/types/package";
 
@@ -102,6 +103,16 @@ export default function PackagesPage() {
   const toggleFeatured = async (packageId: string, currentStatus: boolean) => {
     try {
       setToggleFeaturedLoading(packageId);
+
+      // If trying to feature (currentStatus is false, so we're setting to true), check the limit
+      if (!currentStatus && agent?.id) {
+        const limitCheck = await canFeatureMorePackages(agent.id, packageId);
+        if (!limitCheck.canFeature) {
+          alert(limitCheck.message);
+          return;
+        }
+      }
+
       await updatePackage(packageId, { isFeatured: !currentStatus });
 
       // Update the local state
