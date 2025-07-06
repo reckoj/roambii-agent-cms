@@ -351,8 +351,13 @@ export const SubscriptionPage: React.FC = () => {
                     <span className="text-sm font-medium text-teal-800">Secure Checkout with Stripe</span>
                   </div>
                   <p className="text-xs text-teal-700">
-                    You'll be redirected to Stripe's secure checkout page to complete your payment.
+                    You'll be redirected to Stripe's secure checkout page where you can:
                   </p>
+                  <ul className="text-xs text-teal-700 mt-2 space-y-1">
+                    <li>• Enter your billing address</li>
+                    <li>• See automatic tax calculation</li>
+                    <li>• Complete secure payment</li>
+                  </ul>
                 </div>
               </div>
 

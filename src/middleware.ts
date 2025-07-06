@@ -1,6 +1,29 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Import Firebase for database checks
+async function checkDatabaseSubscription(userId: string): Promise<boolean> {
+  try {
+    // Make a request to our verification API
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/verify-subscription`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.hasActiveSubscription;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error checking database subscription:', error);
+    return false;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   // Check cookies for authentication
   const userIdCookie = request.cookies.get("lastUserId");
@@ -61,8 +84,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If user is authenticated and tries to access an auth page, redirect to dashboard
+  // If user is authenticated and tries to access an auth page, check subscription first
   if (isAuthPage && isAuthenticated) {
+    const userId = userIdCookie?.value;
+    if (userId) {
+      // Check database for active subscription
+      const hasActiveSubscription = await checkDatabaseSubscription(userId);
+      if (hasActiveSubscription) {
+        console.log("✅ User has active subscription, redirecting to dashboard");
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      } else {
+        console.log("⚠️ User has no active subscription, redirecting to subscribe");
+        return NextResponse.redirect(new URL("/subscribe", request.url));
+      }
+    }
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -78,7 +113,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // For authenticated users accessing dashboard, check subscription status
+  // For authenticated users accessing dashboard, check subscription status from DATABASE
   if (isDashboardPage && isAuthenticated && !request.nextUrl.pathname.startsWith("/subscribe")) {
     const userId = userIdCookie?.value;
     
@@ -87,13 +122,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
     
-    // Check subscription status from cookie only
-    // If no subscription cookie, redirect to subscribe page
-    if (!hasSubscriptionCookie) {
-      console.log("❌ No active subscription cookie found, redirecting to subscribe");
+    // Always check database for subscription status (ignore cookies)
+    console.log("🔍 Checking database for active subscription...");
+    const hasActiveSubscription = await checkDatabaseSubscription(userId);
+    
+    if (!hasActiveSubscription) {
+      console.log("❌ No active subscription found in database, redirecting to subscribe");
       return NextResponse.redirect(new URL("/subscribe", request.url));
     } else {
-      console.log("✅ Valid subscription cookie found");
+      console.log("✅ Active subscription confirmed in database");
     }
   }
 

@@ -156,18 +156,70 @@ export const subscriptionService = {
         return null;
       }
 
-      const subscriptionDoc = querySnapshot.docs[0];
-      const subscriptionData = subscriptionDoc.data() as Subscription;
-      
-      console.log('Found subscription:', {
-        id: subscriptionDoc.id,
-        status: subscriptionData.status,
-        userId: subscriptionData.userId,
-        currentPeriodEnd: subscriptionData.currentPeriodEnd,
-        cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd
-      });
-      
-      return subscriptionData;
+      // Find the most recent active subscription
+      let mostRecentActiveSubscription: Subscription | null = null;
+      let mostRecentActiveDoc: any = null;
+
+      for (const doc of querySnapshot.docs) {
+        const subscriptionData = doc.data() as Subscription;
+        
+        // Check if this subscription is active and not expired
+        if (subscriptionData.status === "active") {
+          if (subscriptionData.currentPeriodEnd) {
+            try {
+              const endDateValue = typeof subscriptionData.currentPeriodEnd === 'object' 
+                ? (subscriptionData.currentPeriodEnd && 'toDate' in subscriptionData.currentPeriodEnd
+                    ? (subscriptionData.currentPeriodEnd as any).toDate() 
+                    : new Date())
+                : subscriptionData.currentPeriodEnd;
+              
+              const endDate = new Date(endDateValue);
+              const now = new Date();
+              
+              if (!isNaN(endDate.getTime()) && endDate > now) {
+                // This is an active, non-expired subscription
+                if (!mostRecentActiveSubscription || 
+                    new Date(subscriptionData.currentPeriodStart) > new Date(mostRecentActiveSubscription.currentPeriodStart)) {
+                  mostRecentActiveSubscription = subscriptionData;
+                  mostRecentActiveDoc = doc;
+                }
+              }
+            } catch (error) {
+              console.error('Error parsing subscription date:', error);
+            }
+          }
+        }
+      }
+
+      // If we found an active subscription, use it
+      if (mostRecentActiveSubscription && mostRecentActiveDoc) {
+        const subscriptionDoc = mostRecentActiveDoc;
+        const subscriptionData = mostRecentActiveSubscription;
+        
+        console.log('Found active subscription:', {
+          id: subscriptionDoc.id,
+          status: subscriptionData.status,
+          userId: subscriptionData.userId,
+          currentPeriodEnd: subscriptionData.currentPeriodEnd,
+          cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd
+        });
+        
+        return subscriptionData;
+      } else {
+        // No active subscription found, return the most recent one for debugging
+        const subscriptionDoc = querySnapshot.docs[0];
+        const subscriptionData = subscriptionDoc.data() as Subscription;
+        
+        console.log('No active subscription found, returning most recent:', {
+          id: subscriptionDoc.id,
+          status: subscriptionData.status,
+          userId: subscriptionData.userId,
+          currentPeriodEnd: subscriptionData.currentPeriodEnd,
+          cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd
+        });
+        
+        return subscriptionData;
+      }
     } catch (error) {
       console.error("Error getting subscription:", error);
       throw error;

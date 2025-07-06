@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: "2025-04-30.basil",
 });
 
 export async function POST(request: Request) {
@@ -10,9 +10,9 @@ export async function POST(request: Request) {
     const { action, data } = await request.json();
 
     switch (action) {
-      case 'createSubscription':
+      case "createSubscription":
         const { userId, priceId, email } = data;
-        
+
         // Create or get Stripe customer
         const customer = await stripe.customers.create({
           email,
@@ -21,11 +21,11 @@ export async function POST(request: Request) {
           },
         });
 
-        // Create a checkout session for the subscription
+        // Create a customized checkout session for the subscription
         const session = await stripe.checkout.sessions.create({
           customer: customer.id,
-          mode: 'subscription',
-          payment_method_types: ['card'],
+          mode: "subscription",
+          payment_method_types: ["card"],
           line_items: [
             {
               price: priceId,
@@ -37,28 +37,42 @@ export async function POST(request: Request) {
           metadata: {
             userId,
           },
+          // Essential features for address and tax
+          billing_address_collection: "required",
+          automatic_tax: {
+            enabled: true,
+          },
+          customer_update: {
+            address: "auto",
+            name: "auto",
+          },
+          // Allow promotion codes
+          allow_promotion_codes: false,
         });
 
-        return NextResponse.json({ 
+        return NextResponse.json({
           sessionId: session.id,
-          customerId: customer.id 
+          customerId: customer.id,
         });
 
-      case 'cancelSubscription':
+      case "cancelSubscription":
         const { subscriptionId } = data;
-        const canceledSubscription = await stripe.subscriptions.update(subscriptionId, {
-          cancel_at_period_end: true,
-        });
+        const canceledSubscription = await stripe.subscriptions.update(
+          subscriptionId,
+          {
+            cancel_at_period_end: true,
+          }
+        );
         return NextResponse.json({ subscription: canceledSubscription });
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
-    console.error('Stripe API error:', error);
+    console.error("Stripe API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}
