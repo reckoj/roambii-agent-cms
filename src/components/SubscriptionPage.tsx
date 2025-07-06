@@ -5,7 +5,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { subscriptionService } from "../lib/subscription-service";
 import { SubscriptionPlan } from "../types/subscription";
 import { useAppSelector, useAppDispatch } from "@/lib/redux/hooks";
-import { ArrowRight, Check, AlertTriangle, LogOut } from "lucide-react";
+import { ArrowRight, Check, AlertTriangle, LogOut, Star, Shield, CreditCard } from "lucide-react";
 import { logoutUserAsync } from "@/lib/redux/slices/authSlice";
 import { useRouter } from "next/navigation";
 
@@ -58,9 +58,8 @@ export const SubscriptionPage: React.FC = () => {
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stripeError, setStripeError] = useState<boolean>(
-    stripePromise === null
-  );
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [stripeError, setStripeError] = useState<boolean>(stripePromise === null);
   const agent = useAppSelector((state) => state.auth.agent);
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -126,6 +125,9 @@ export const SubscriptionPage: React.FC = () => {
 
   const handleSubscribe = async () => {
     try {
+      setProcessingPayment(true);
+      setError(null);
+
       if (!stripePromise) {
         setStripeError(true);
         setError(
@@ -193,15 +195,17 @@ export const SubscriptionPage: React.FC = () => {
     } catch (error) {
       console.error("Error creating subscription:", error);
       setError("Failed to create subscription. Please try again.");
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-500 to-teal-700">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading subscription plan...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-white">Loading subscription plan...</p>
         </div>
       </div>
     );
@@ -209,120 +213,216 @@ export const SubscriptionPage: React.FC = () => {
 
   if (!plan) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-500 to-teal-700">
         <div className="text-center">
-          <p className="text-gray-600">No subscription plan available.</p>
+          <p className="text-white">No subscription plan available.</p>
+          <button
+            onClick={handleLogout}
+            className="mt-4 inline-flex items-center px-4 py-2 border border-white rounded-md shadow-sm text-sm font-medium text-white hover:bg-white hover:text-teal-700"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-extrabold text-gray-900">
-            Join Roambii
-          </h1>
-          <button
-            onClick={handleLogout}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </button>
-        </div>
+    <div className="min-h-screen flex">
+      {/* Left Panel - Teal Background with Plan Details */}
+      <div className="w-1/2 bg-gradient-to-br from-teal-500 to-teal-700 relative overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center p-8">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-gradient-to-br from-teal-400/20 via-teal-600/20 to-teal-800/20"></div>
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-300/10 rounded-full blur-3xl"></div>
+          </div>
 
-        {stripeError && (
-          <div className="mb-8 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" />
+          {/* Content */}
+          <div className="relative z-10 max-w-lg text-center">
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold text-white mb-4">
+                Subscribe to Roambii Pro
+              </h1>
+              <p className="text-teal-100 text-lg leading-relaxed">
+                Unlock the full potential of your travel agency with our comprehensive platform
+              </p>
+            </div>
+
+            {/* Plan Card */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-white/20">
+              <div className="flex items-center justify-center mb-4">
+                <Star className="w-8 h-8 text-yellow-400 mr-2" />
+                <h2 className="text-2xl font-bold text-white">{plan.name}</h2>
               </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Payment System Notice
+
+              <div className="text-center mb-6">
+                <div className="flex items-baseline justify-center">
+                  <span className="text-5xl font-bold text-white">${plan.price}</span>
+                  <span className="text-white/80 ml-2">per {plan.interval}</span>
+                </div>
+                <p className="text-teal-100 mt-2">{plan.description}</p>
+              </div>
+
+              {/* Features */}
+              <div className="space-y-3">
+                {plan.features.slice(0, 4).map((feature, index) => (
+                  <div key={index} className="flex items-center text-white/90">
+                    <Check className="w-5 h-5 text-teal-200 mr-3 flex-shrink-0" />
+                    <span className="text-sm">{feature}</span>
+                  </div>
+                ))}
+                {plan.features.length > 4 && (
+                  <div className="text-teal-200 text-sm pt-2">
+                    + {plan.features.length - 4} more features
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Trust indicators */}
+            <div className="flex items-center justify-center space-x-8 text-white/60">
+              <div className="flex items-center">
+                <Shield className="w-5 h-5 mr-2" />
+                <span className="text-sm">Secure</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-sm">Instant Access</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - White Background with Checkout */}
+      <div className="w-1/2 bg-white overflow-y-auto">
+        <div className="p-8">
+          <div className="max-w-md mx-auto w-full">
+            <div className="min-h-[600px] flex flex-col justify-center">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Complete Your Subscription
+                </h2>
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </button>
+              </div>
+
+              {/* Contact Information */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Contact Information
                 </h3>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <p>
-                    Our payment system is temporarily undergoing maintenance.
-                    You can view plan details, but subscriptions are currently
-                    unavailable.
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">Email:</p>
+                  <p className="font-medium text-gray-900">{agent?.email}</p>
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Payment Method
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center p-4 border-2 border-teal-500 bg-teal-50 rounded-lg">
+                    <CreditCard className="w-6 h-6 text-teal-600 mr-3" />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">Credit/Debit Card</div>
+                      <div className="text-sm text-gray-500">Visa, Mastercard, American Express</div>
+                    </div>
+                    <Check className="w-5 h-5 text-teal-500" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Secure Checkout Notice */}
+              <div className="mb-6">
+                <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <Shield className="w-5 h-5 text-teal-600 mr-2" />
+                    <span className="text-sm font-medium text-teal-800">Secure Checkout with Stripe</span>
+                  </div>
+                  <p className="text-xs text-teal-700">
+                    You'll be redirected to Stripe's secure checkout page to complete your payment.
                   </p>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {error && (
-          <div className="mb-8 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="text-center mb-12">
-          <p className="text-lg text-gray-600 max-w-xl mx-auto">
-            Access all features and take your travel agency to the next level
-            with our comprehensive platform.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="px-6 py-8 bg-teal-700 sm:p-10 sm:pb-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl leading-8 font-extrabold text-white">
-                {plan.name}
-              </h3>
-              <div className="ml-4 bg-teal-100 text-teal-800 text-sm font-semibold px-3 py-1 rounded-full">
-                Most Popular
-              </div>
-            </div>
-            <div className="mt-4 flex items-baseline text-white">
-              <span className="text-5xl font-extrabold tracking-tight">
-                ${plan.price}
-              </span>
-              <span className="ml-1 text-xl font-semibold">
-                /{plan.interval}
-              </span>
-            </div>
-            <p className="mt-5 text-lg text-teal-100">{plan.description}</p>
-          </div>
-          <div className="px-6 pt-6 pb-8 bg-white sm:p-10">
-            <ul className="space-y-4">
-              {plan.features.map((feature, index) => (
-                <li key={index} className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <Check className="h-6 w-6 text-teal-500" />
+              {/* Payment Summary */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Payment Summary
+                </h3>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">{plan.name}</span>
+                    <span className="font-medium">${plan.price}</span>
                   </div>
-                  <p className="ml-3 text-base text-gray-700">{feature}</p>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-8">
+                  <div className="flex justify-between items-center text-sm text-gray-500 mb-3">
+                    <span>Billed monthly • Cancel anytime</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-medium text-gray-900">Total due today</span>
+                      <span className="text-2xl font-bold text-gray-900">${plan.price}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Continue to Payment Button */}
               <button
                 onClick={handleSubscribe}
-                disabled={stripeError}
-                className={`w-full flex items-center justify-center px-6 py-4 text-lg font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-                  stripeError
+                disabled={stripeError || processingPayment}
+                className={`w-full flex items-center justify-center px-6 py-4 text-lg font-semibold rounded-lg transition-all duration-200 ${
+                  stripeError || processingPayment
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 transform transition hover:scale-105"
+                    : "bg-teal-600 text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                 }`}
               >
-                {stripeError ? "Temporarily Unavailable" : "Subscribe Now"}
-                {!stripeError && <ArrowRight className="ml-2 h-5 w-5" />}
+                {processingPayment ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : stripeError ? (
+                  "Temporarily Unavailable"
+                ) : (
+                  <>
+                    Continue to Payment
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
               </button>
+
+              {/* Error messages */}
+              {error && (
+                <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" />
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Footer text */}
+              <p className="text-center mt-6 text-sm text-gray-500">
+                Complete your payment securely with Stripe
+              </p>
+
+              <div className="flex items-center justify-center mt-4 text-xs text-gray-400">
+                <span>Powered by</span>
+                <span className="ml-1 font-medium">Stripe</span>
+              </div>
             </div>
-            <p className="text-center mt-4 text-sm text-gray-500">
-              Cancel anytime. No long-term contracts.
-            </p>
           </div>
         </div>
       </div>
