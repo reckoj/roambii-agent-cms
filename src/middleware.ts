@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Import Firebase for database checks
-async function checkDatabaseSubscription(userId: string): Promise<boolean> {
+// Check database subscription via API with proper URL construction
+async function checkDatabaseSubscription(userId: string, request: NextRequest): Promise<boolean> {
   try {
-    // Make a request to our verification API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/verify-subscription`, {
+    console.log("🔍 Checking database for active subscription...");
+    
+    // Construct the API URL using the current request's origin
+    const url = new URL('/api/verify-subscription', request.url);
+    
+    console.log("📡 Making API call to:", url.toString());
+    
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -13,10 +19,23 @@ async function checkDatabaseSubscription(userId: string): Promise<boolean> {
       body: JSON.stringify({ userId }),
     });
 
+    console.log("📡 API response status:", response.status);
+
     if (response.ok) {
       const data = await response.json();
+      
+      console.log("📡 API response data:", data);
+      
+      if (data.hasActiveSubscription) {
+        console.log("✅ Active subscription confirmed in database");
+      } else {
+        console.log("❌ No active subscription found in database");
+      }
+      
       return data.hasActiveSubscription;
     }
+    
+    console.log("❌ Failed to verify subscription via API, status:", response.status);
     return false;
   } catch (error) {
     console.error('Error checking database subscription:', error);
@@ -89,7 +108,7 @@ export async function middleware(request: NextRequest) {
     const userId = userIdCookie?.value;
     if (userId) {
       // Check database for active subscription
-      const hasActiveSubscription = await checkDatabaseSubscription(userId);
+      const hasActiveSubscription = await checkDatabaseSubscription(userId, request);
       if (hasActiveSubscription) {
         console.log("✅ User has active subscription, redirecting to dashboard");
         return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -123,14 +142,11 @@ export async function middleware(request: NextRequest) {
     }
     
     // Always check database for subscription status (ignore cookies)
-    console.log("🔍 Checking database for active subscription...");
-    const hasActiveSubscription = await checkDatabaseSubscription(userId);
+    const hasActiveSubscription = await checkDatabaseSubscription(userId, request);
     
     if (!hasActiveSubscription) {
       console.log("❌ No active subscription found in database, redirecting to subscribe");
       return NextResponse.redirect(new URL("/subscribe", request.url));
-    } else {
-      console.log("✅ Active subscription confirmed in database");
     }
   }
 
